@@ -61,7 +61,11 @@ src/
   │   ├── PageView.jsx
   │   └── EmptyState.jsx
   ├── stores/          # MobX stores
-  │   └── cookbookStore.js
+  │   ├── cookbookStore.js    # Главный store (объединяет все)
+  │   ├── sectionsStore.js    # Store для управления разделами
+  │   ├── pagesStore.js       # Store для управления страницами
+  │   ├── uiStore.js          # Store для управления UI состоянием
+  │   └── index.js            # Экспорт всех stores
   ├── services/        # REST API сервисы
   │   ├── api.js           # Базовый API клиент
   │   ├── mocks.js         # Моки данных

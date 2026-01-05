@@ -41,7 +41,7 @@ const StyledListItem = styled(ListItem)(({ theme, selected }) => ({
 
 const SectionItem = observer(({ section, onClose }) => {
   const { cookbookStore } = useStores()
-  const [expanded, setExpanded] = useState(true)
+  const [expanded, setExpanded] = useState(false)
   const [menuAnchor, setMenuAnchor] = useState(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editTitle, setEditTitle] = useState(section.title)

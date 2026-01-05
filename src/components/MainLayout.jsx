@@ -15,6 +15,7 @@ import {
   Snackbar,
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import Sidebar from './Sidebar'
 import PageView from './PageView'
 import EmptyState from './EmptyState'
@@ -25,7 +26,7 @@ const DrawerHeader = styled('div')(({ theme }) => ({
   alignItems: 'center',
   padding: theme.spacing(0, 1),
   ...theme.mixins.toolbar,
-  justifyContent: 'flex-start',
+  justifyContent: 'space-between',
 }))
 
 const MainContent = styled(Box)(({ theme }) => ({
@@ -88,17 +89,15 @@ const MainLayout = observer(() => {
         }}
       >
         <Toolbar>
-          {isMobile && (
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2 }}
-            >
-              <MenuIcon />
-            </IconButton>
-          )}
+          <IconButton
+            color="inherit"
+            aria-label="toggle drawer"
+            edge="start"
+            onClick={isMobile ? handleDrawerToggle : () => cookbookStore.toggleSidebar()}
+            sx={{ mr: 2 }}
+          >
+            <MenuIcon />
+          </IconButton>
           <Typography variant="h6" noWrap component="div">
             Cookbook - Инженерные системы дома
           </Typography>
@@ -107,7 +106,15 @@ const MainLayout = observer(() => {
 
       <Box
         component="nav"
-        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+        sx={(theme) => ({
+          width: { md: cookbookStore.sidebarOpen ? drawerWidth : 0 },
+          flexShrink: { md: 0 },
+          overflow: 'hidden',
+          transition: theme.transitions.create('width', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          }),
+        })}
       >
         {isMobile ? (
           <Drawer
@@ -143,9 +150,12 @@ const MainLayout = observer(() => {
             }}
           >
             <DrawerHeader>
-              <Typography variant="h6" sx={{ p: 2 }}>
+              <Typography variant="h6" sx={{ p: 2, flexGrow: 1 }}>
                 Разделы
               </Typography>
+              <IconButton onClick={() => cookbookStore.toggleSidebar()}>
+                <ChevronLeftIcon />
+              </IconButton>
             </DrawerHeader>
             <Sidebar />
           </Drawer>

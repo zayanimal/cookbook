@@ -1,0 +1,35 @@
+{
+  "name": "cookbook",
+  "version": "1.0.0",
+  "description": "Cookbook for home engineering systems",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@editorjs/code": "^2.8.0",
+    "@editorjs/editorjs": "^2.27.2",
+    "@editorjs/header": "^2.7.3",
+    "@editorjs/image": "^2.8.1",
+    "@editorjs/link": "^2.5.0",
+    "@editorjs/list": "^1.9.0",
+    "@editorjs/paragraph": "^2.10.2",
+    "@editorjs/quote": "^2.5.0",
+    "@editorjs/table": "^2.2.2",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.14.19",
+    "@mui/material": "^5.14.20",
+    "dotenv": "^17.2.3",
+    "mobx": "^6.10.0",
+    "mobx-react-lite": "^4.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.8"
+  }
+}

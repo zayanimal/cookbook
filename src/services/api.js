@@ -2,11 +2,41 @@
  * Базовый API клиент для работы с бэкендом
  */
 
+import axios from 'axios'
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== 'false' // По умолчанию используем моки
 
 // Симуляция задержки сети
 const delay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// Создаем экземпляр axios с базовой конфигурацией
+const axiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 10000, // 10 секунд таймаут
+})
+
+// Интерцептор для обработки ошибок
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Обрабатываем ошибки axios
+    if (error.response) {
+      // Сервер ответил с кодом ошибки
+      const message = error.response.data?.error || error.response.data?.message || `HTTP error! status: ${error.response.status}`
+      return Promise.reject(new Error(message))
+    } else if (error.request) {
+      // Запрос был отправлен, но ответа не получено
+      return Promise.reject(new Error('Network error: No response from server'))
+    } else {
+      // Ошибка при настройке запроса
+      return Promise.reject(new Error(error.message || 'Request setup error'))
+    }
+  }
+)
 
 class ApiClient {
   constructor() {
@@ -22,20 +52,7 @@ class ApiClient {
       return this.mockRequest('GET', endpoint, null, options)
     }
 
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    return response.json()
+    return (await axiosInstance.get(endpoint, options)).data
   }
 
   /**
@@ -46,21 +63,7 @@ class ApiClient {
       return this.mockRequest('POST', endpoint, data, options)
     }
 
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      body: JSON.stringify(data),
-      ...options,
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    return response.json()
+    return (await axiosInstance.post(endpoint, data, options)).data
   }
 
   /**
@@ -71,21 +74,7 @@ class ApiClient {
       return this.mockRequest('PUT', endpoint, data, options)
     }
 
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      body: JSON.stringify(data),
-      ...options,
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    return response.json()
+    return (await axiosInstance.put(endpoint, data, options)).data
   }
 
   /**
@@ -96,20 +85,7 @@ class ApiClient {
       return this.mockRequest('DELETE', endpoint, null, options)
     }
 
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    return response.json()
+    return (await axiosInstance.delete(endpoint, options)).data
   }
 
   /**
@@ -124,4 +100,3 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient()
-

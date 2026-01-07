@@ -23,7 +23,6 @@ import {
 import {
   ExpandLess,
   ExpandMore,
-  Folder,
   Description,
   Add,
   Edit,
@@ -46,17 +45,18 @@ const SectionItem = observer(({ section, onClose }) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editTitle, setEditTitle] = useState(section.title)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [addPageDialogOpen, setAddPageDialogOpen] = useState(false)
+  const [newPageTitle, setNewPageTitle] = useState('')
 
   const isSelected = cookbookStore.selectedSectionId === section.id
 
-  const handleClick = () => {
-    setExpanded(!expanded)
-  }
-
-  const handleSectionClick = (e) => {
-    e.stopPropagation()
-    cookbookStore.selectSection(section.id)
-    if (onClose) onClose()
+  const handleClick = (e) => {
+    // Проверяем, что клик не по иконке меню (она уже обрабатывается отдельно)
+    if (!e.target.closest('.MuiIconButton-root')) {
+      cookbookStore.selectSection(section.id)
+      setExpanded(!expanded)
+      if (onClose) onClose()
+    }
   }
 
   const handleMenuOpen = (e) => {
@@ -68,13 +68,19 @@ const SectionItem = observer(({ section, onClose }) => {
     setMenuAnchor(null)
   }
 
-  const handleAddPage = async () => {
+  const handleAddPage = () => {
     handleMenuClose()
-    const title = prompt('Введите название страницы:')
-    if (title) {
+    setNewPageTitle('')
+    setAddPageDialogOpen(true)
+  }
+
+  const handleCreatePage = async () => {
+    if (newPageTitle.trim()) {
       try {
-        const pageId = await cookbookStore.addPage(section.id, title)
+        const pageId = await cookbookStore.addPage(section.id, newPageTitle.trim())
         cookbookStore.selectPage(pageId)
+        setAddPageDialogOpen(false)
+        setNewPageTitle('')
         if (onClose) onClose()
       } catch (error) {
         alert('Ошибка создания страницы: ' + (error.message || 'Неизвестная ошибка'))
@@ -129,14 +135,16 @@ const SectionItem = observer(({ section, onClose }) => {
           </IconButton>
         }
       >
-        <ListItemButton onClick={handleClick} sx={{ pl: 2 }}>
+        <ListItemButton 
+          onClick={handleClick} 
+          sx={{ pl: 2, width: '100%', cursor: 'pointer' }}
+        >
           <ListItemIcon sx={{ minWidth: 36 }}>
             {expanded ? <ExpandLess /> : <ExpandMore />}
           </ListItemIcon>
           <ListItemText
             primary={section.title}
-            onClick={handleSectionClick}
-            sx={{ cursor: 'pointer' }}
+            sx={{ flex: 1 }}
           />
         </ListItemButton>
       </StyledListItem>
@@ -196,7 +204,16 @@ const SectionItem = observer(({ section, onClose }) => {
         </MenuItem>
       </Menu>
 
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
+      <Dialog
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        maxWidth="sm"
+        sx={{
+          '& .MuiDialog-paper': {
+            width: '100%',
+            maxWidth: '500px',
+          },
+        }}>
         <DialogTitle>Редактировать раздел</DialogTitle>
         <DialogContent>
           <TextField
@@ -229,6 +246,46 @@ const SectionItem = observer(({ section, onClose }) => {
           <Button onClick={() => setDeleteDialogOpen(false)}>Отмена</Button>
           <Button onClick={handleConfirmDelete} color="error" variant="contained">
             Удалить
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={addPageDialogOpen}
+        onClose={() => setAddPageDialogOpen(false)}
+        maxWidth="sm"
+        sx={{
+          '& .MuiDialog-paper': {
+            width: '100%',
+            maxWidth: '500px',
+          },
+        }}
+      >
+        <DialogTitle>Создать новую страницу</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Название страницы"
+            fullWidth
+            variant="outlined"
+            value={newPageTitle}
+            onChange={(e) => setNewPageTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newPageTitle.trim()) {
+                handleCreatePage()
+              }
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddPageDialogOpen(false)}>Отмена</Button>
+          <Button
+            onClick={handleCreatePage}
+            variant="contained"
+            disabled={!newPageTitle.trim()}
+          >
+            Создать
           </Button>
         </DialogActions>
       </Dialog>
@@ -278,6 +335,13 @@ const Sidebar = observer(({ onClose }) => {
       <Dialog
         open={addSectionDialogOpen}
         onClose={() => setAddSectionDialogOpen(false)}
+        maxWidth="sm"
+        sx={{
+          '& .MuiDialog-paper': {
+            width: '100%',
+            maxWidth: '500px',
+          },
+        }}
       >
         <DialogTitle>Добавить новый раздел</DialogTitle>
         <DialogContent>

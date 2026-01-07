@@ -1,25 +1,41 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { observer } from 'mobx-react-lite'
 import { useStores } from '../hooks/useStores'
-import { Box, Typography, Paper, Button } from '@mui/material'
+import {
+  Box,
+  Typography,
+  Paper,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+} from '@mui/material'
 import DescriptionIcon from '@mui/icons-material/Description'
 import AddIcon from '@mui/icons-material/Add'
 
 const EmptyState = observer(() => {
   const { cookbookStore } = useStores()
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [pageTitle, setPageTitle] = useState('')
+
+  const handleCreatePageClick = () => {
+    setPageTitle('')
+    setDialogOpen(true)
+  }
 
   const handleCreatePage = async () => {
     const section = cookbookStore.sections[0]
-    if (section) {
-      const title = prompt('Введите название страницы:')
-      if (title) {
-        try {
-          const pageId = await cookbookStore.addPage(section.id, title)
-          cookbookStore.selectSection(section.id)
-          cookbookStore.selectPage(pageId)
-        } catch (error) {
-          alert('Ошибка создания страницы: ' + (error.message || 'Неизвестная ошибка'))
-        }
+    if (section && pageTitle.trim()) {
+      try {
+        const pageId = await cookbookStore.addPage(section.id, pageTitle.trim())
+        cookbookStore.selectSection(section.id)
+        cookbookStore.selectPage(pageId)
+        setDialogOpen(false)
+        setPageTitle('')
+      } catch (error) {
+        alert('Ошибка создания страницы: ' + (error.message || 'Неизвестная ошибка'))
       }
     }
   }
@@ -52,12 +68,52 @@ const EmptyState = observer(() => {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={handleCreatePage}
+            onClick={handleCreatePageClick}
           >
             Создать страницу
           </Button>
         )}
       </Paper>
+
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth="sm"
+        sx={{
+          '& .MuiDialog-paper': {
+            width: '100%',
+            maxWidth: '550px',
+          },
+        }}
+      >
+        <DialogTitle>Создать новую страницу</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Название страницы"
+            fullWidth
+            variant="outlined"
+            value={pageTitle}
+            onChange={(e) => setPageTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && pageTitle.trim()) {
+                handleCreatePage()
+              }
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Отмена</Button>
+          <Button
+            onClick={handleCreatePage}
+            variant="contained"
+            disabled={!pageTitle.trim()}
+          >
+            Создать
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 })

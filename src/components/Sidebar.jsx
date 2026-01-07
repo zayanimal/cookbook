@@ -39,7 +39,7 @@ const StyledListItem = styled(ListItem)(({ theme, selected }) => ({
 }))
 
 const SectionItem = observer(({ section, onClose }) => {
-  const { cookbookStore } = useStores()
+  const { cookbookStore, authStore } = useStores()
   const [expanded, setExpanded] = useState(false)
   const [menuAnchor, setMenuAnchor] = useState(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -130,9 +130,11 @@ const SectionItem = observer(({ section, onClose }) => {
         disablePadding
         selected={isSelected}
         secondaryAction={
-          <IconButton edge="end" size="small" onClick={handleMenuOpen}>
-            <MoreVert fontSize="small" />
-          </IconButton>
+          authStore.canEdit && (
+            <IconButton edge="end" size="small" onClick={handleMenuOpen}>
+              <MoreVert fontSize="small" />
+            </IconButton>
+          )
         }
       >
         <ListItemButton 
@@ -171,38 +173,44 @@ const SectionItem = observer(({ section, onClose }) => {
               </ListItem>
             )
           })}
-          <ListItem disablePadding>
-            <ListItemButton
-              sx={{ pl: 6 }}
-              onClick={handleAddPage}
-            >
-              <ListItemIcon sx={{ minWidth: 36 }}>
-                <Add fontSize="small" />
-              </ListItemIcon>
-              <ListItemText primary="Добавить страницу" />
-            </ListItemButton>
-          </ListItem>
+          {authStore.canAdd && (
+            <ListItem disablePadding>
+              <ListItemButton
+                sx={{ pl: 6 }}
+                onClick={handleAddPage}
+              >
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  <Add fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="Добавить страницу" />
+              </ListItemButton>
+            </ListItem>
+          )}
         </List>
       </Collapse>
 
-      <Menu
-        anchorEl={menuAnchor}
-        open={Boolean(menuAnchor)}
-        onClose={handleMenuClose}
-      >
-        <MenuItem onClick={handleAddPage}>
-          <Add fontSize="small" sx={{ mr: 1 }} />
-          Добавить страницу
-        </MenuItem>
-        <MenuItem onClick={handleEditSection}>
-          <Edit fontSize="small" sx={{ mr: 1 }} />
-          Редактировать раздел
-        </MenuItem>
-        <MenuItem onClick={handleDeleteSection}>
-          <Delete fontSize="small" sx={{ mr: 1 }} />
-          Удалить раздел
-        </MenuItem>
-      </Menu>
+      {authStore.canEdit && (
+        <Menu
+          anchorEl={menuAnchor}
+          open={Boolean(menuAnchor)}
+          onClose={handleMenuClose}
+        >
+          {authStore.canAdd && (
+            <MenuItem onClick={handleAddPage}>
+              <Add fontSize="small" sx={{ mr: 1 }} />
+              Добавить страницу
+            </MenuItem>
+          )}
+          <MenuItem onClick={handleEditSection}>
+            <Edit fontSize="small" sx={{ mr: 1 }} />
+            Редактировать раздел
+          </MenuItem>
+          <MenuItem onClick={handleDeleteSection}>
+            <Delete fontSize="small" sx={{ mr: 1 }} />
+            Удалить раздел
+          </MenuItem>
+        </Menu>
+      )}
 
       <Dialog
         open={editDialogOpen}
@@ -294,7 +302,7 @@ const SectionItem = observer(({ section, onClose }) => {
 })
 
 const Sidebar = observer(({ onClose }) => {
-  const { cookbookStore } = useStores()
+  const { cookbookStore, authStore } = useStores()
   const [addSectionDialogOpen, setAddSectionDialogOpen] = useState(false)
   const [newSectionTitle, setNewSectionTitle] = useState('')
   const [isAddingSection, setIsAddingSection] = useState(false)
@@ -321,16 +329,18 @@ const Sidebar = observer(({ onClose }) => {
           <SectionItem key={section.id} section={section} onClose={onClose} />
         ))}
       </List>
-      <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-        <Button
-          fullWidth
-          variant="outlined"
-          startIcon={<Add />}
-          onClick={() => setAddSectionDialogOpen(true)}
-        >
-          Добавить раздел
-        </Button>
-      </Box>
+      {authStore.canAdd && (
+        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<Add />}
+            onClick={() => setAddSectionDialogOpen(true)}
+          >
+            Добавить раздел
+          </Button>
+        </Box>
+      )}
 
       <Dialog
         open={addSectionDialogOpen}

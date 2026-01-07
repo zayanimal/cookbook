@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { observer } from 'mobx-react-lite'
+import { useNavigate } from 'react-router-dom'
 import { useStores } from '../hooks/useStores'
 import {
   Box,
@@ -13,9 +14,11 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
+  Button,
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import LogoutIcon from '@mui/icons-material/Logout'
 import Sidebar from './Sidebar'
 import PageView from './PageView'
 import EmptyState from './EmptyState'
@@ -42,7 +45,8 @@ const MainContent = styled(Box)(({ theme }) => ({
 const drawerWidth = 280
 
 const MainLayout = observer(() => {
-  const { cookbookStore } = useStores()
+  const { cookbookStore, authStore } = useStores()
+  const navigate = useNavigate()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -67,6 +71,11 @@ const MainLayout = observer(() => {
   const handleCloseSnackbar = () => {
     setSnackbarOpen(false)
     cookbookStore.clearError()
+  }
+
+  const handleLogout = async () => {
+    await authStore.logout()
+    navigate('/login')
   }
 
   return (
@@ -98,9 +107,24 @@ const MainLayout = observer(() => {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div">
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             Cookbook
           </Typography>
+          {authStore.user && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" sx={{ color: 'white', mr: 1 }}>
+                {authStore.user.username}
+              </Typography>
+              <Button
+                color="inherit"
+                startIcon={<LogoutIcon />}
+                onClick={handleLogout}
+                sx={{ ml: 1 }}
+              >
+                Выйти
+              </Button>
+            </Box>
+          )}
         </Toolbar>
       </AppBar>
 

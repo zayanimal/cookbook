@@ -3,9 +3,11 @@
  */
 
 import axios from 'axios'
+import Cookies from 'js-cookie'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== 'false' // По умолчанию используем моки
+const TOKEN_COOKIE_NAME = 'auth_token'
 
 // Симуляция задержки сети
 const delay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -17,7 +19,23 @@ const axiosInstance = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 10000, // 10 секунд таймаут
+  withCredentials: true, // Для отправки cookies
 })
+
+// Интерцептор для добавления JWT токена в заголовки запросов
+axiosInstance.interceptors.request.use(
+  (config) => {
+    // Получаем токен из cookies
+    const token = Cookies.get(TOKEN_COOKIE_NAME)
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
 
 // Интерцептор для обработки ошибок
 axiosInstance.interceptors.response.use(
@@ -25,6 +43,13 @@ axiosInstance.interceptors.response.use(
   (error) => {
     // Обрабатываем ошибки axios
     if (error.response) {
+      // Если получили 401 (Unauthorized), значит токен недействителен
+      if (error.response.status === 401) {
+        // Удаляем токен из cookies
+        Cookies.remove(TOKEN_COOKIE_NAME)
+        // Можно перенаправить на страницу входа или обновить состояние авторизации
+        // Для этого нужно будет импортировать authStore
+      }
       // Сервер ответил с кодом ошибки
       const message = error.response.data?.error || error.response.data?.message || `HTTP error! status: ${error.response.status}`
       return Promise.reject(new Error(message))
@@ -95,7 +120,17 @@ class ApiClient {
     await delay(options.delay || 300) // Симуляция задержки сети
 
     const { getMockData } = await import('./mocks')
-    return getMockData(endpoint, method, data)
+    const Cookies = (await import('js-cookie')).default
+    // Передаем headers для работы с токеном в моках
+    const headers = options.headers || {}
+    // Если токен не в заголовках, пытаемся получить из cookies для моков
+    if (!headers.Authorization && !headers.authorization) {
+      const token = Cookies.get(TOKEN_COOKIE_NAME)
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+    }
+    return getMockData(endpoint, method, data, headers)
   }
 }
 

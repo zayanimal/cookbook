@@ -57,7 +57,7 @@ const EditorContainer = styled(Box)(({ theme }) => ({
 }))
 
 const PageView = observer(() => {
-  const { cookbookStore } = useStores()
+  const { cookbookStore, authStore } = useStores()
   const editorRef = useRef(null)
   const editorInstanceRef = useRef(null)
   const [isEditMode, setIsEditMode] = useState(false) // Режим редактирования выключен по умолчанию
@@ -377,59 +377,61 @@ const PageView = observer(() => {
         }}
       >
         <Box sx={{ flexGrow: 1, minWidth: 200 }}></Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          {isEditMode ? (
-            <>
-              <Tooltip title="Сохранить">
-                <IconButton
-                  size="small"
-                  onClick={handleSaveAndExit}
-                  sx={{
-                    color: 'primary.main',
-                  }}
-                >
-                  <SaveIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Отмена">
-                <IconButton
-                  size="small"
-                  onClick={handleCancelEdit}
-                  sx={{
-                    color: 'text.primary',
-                  }}
-                >
-                  <CloseIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </>
-          ) : (
-            <>
-              <Tooltip title="Редактировать">
-                <IconButton
-                  size="small"
-                  onClick={handleEnableEditMode}
-                  sx={{
-                    color: 'primary.main',
-                  }}
-                >
-                  <EditIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Удалить">
-                <IconButton
-                  size="small"
-                  onClick={handleDelete}
-                  sx={{
-                    color: 'error.main',
-                  }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </>
-          )}
-        </Box>
+        {authStore.canEdit && (
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {isEditMode ? (
+              <>
+                <Tooltip title="Сохранить">
+                  <IconButton
+                    size="small"
+                    onClick={handleSaveAndExit}
+                    sx={{
+                      color: 'primary.main',
+                    }}
+                  >
+                    <SaveIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Отмена">
+                  <IconButton
+                    size="small"
+                    onClick={handleCancelEdit}
+                    sx={{
+                      color: 'text.primary',
+                    }}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+            ) : (
+              <>
+                <Tooltip title="Редактировать">
+                  <IconButton
+                    size="small"
+                    onClick={handleEnableEditMode}
+                    sx={{
+                      color: 'primary.main',
+                    }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Удалить">
+                  <IconButton
+                    size="small"
+                    onClick={handleDelete}
+                    sx={{
+                      color: 'error.main',
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
+          </Box>
+        )}
       </Toolbar>
 
       <Box sx={{ mt: 0, pt: 0 }}>

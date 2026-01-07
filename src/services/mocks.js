@@ -7,12 +7,30 @@ import sectionsMock from '../../mocks/sections.json'
 // Кэш для хранения моков
 const mockCache = {
   sections: sectionsMock,
+  users: [
+    {
+      id: '1',
+      username: 'admin',
+      password: 'admin123', // В реальном приложении пароль должен быть хеширован
+      role: 'admin',
+      name: 'Администратор',
+    },
+    {
+      id: '2',
+      username: 'client',
+      password: 'client123', // В реальном приложении пароль должен быть хеширован
+      role: 'client',
+      name: 'Клиент',
+    },
+  ],
+  // Храним соответствие токен -> userId для моков
+  tokens: {},
 }
 
 /**
  * Получить мок данные по эндпоинту
  */
-export function getMockData(endpoint, method, data) {
+export function getMockData(endpoint, method, data, headers = {}) {
   // Нормализуем endpoint
   const normalizedEndpoint = endpoint.replace(/^\/api/, '')
 
@@ -140,6 +158,82 @@ export function getMockData(endpoint, method, data) {
       return {
         success: true,
       }
+    }
+  }
+
+  // POST /auth/login
+  if (normalizedEndpoint === '/auth/login' && method === 'POST') {
+    const { username, password } = data
+    const user = mockCache.users.find(
+      (u) => u.username === username && u.password === password
+    )
+    if (user) {
+      // Генерируем простой мок токен (в реальном приложении это должен быть JWT)
+      const token = `mock_jwt_token_${user.id}_${Date.now()}`
+      // Сохраняем соответствие токен -> userId для моков
+      mockCache.tokens[token] = user.id
+      const { password: _, ...userWithoutPassword } = user
+      return {
+        token,
+        user: userWithoutPassword,
+        success: true,
+      }
+    } else {
+      throw new Error('Неверное имя пользователя или пароль')
+    }
+  }
+
+  // POST /auth/logout
+  if (normalizedEndpoint === '/auth/logout' && method === 'POST') {
+    // В моках токен будет удален из cookies на клиенте
+    return {
+      success: true,
+      message: 'Выход выполнен успешно',
+    }
+  }
+
+  // GET /auth/me
+  if (normalizedEndpoint === '/auth/me' && method === 'GET') {
+    // Извлекаем токен из заголовка Authorization
+    const authHeader = headers.Authorization || headers.authorization
+    let token = null
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7)
+    }
+    
+    if (!token) {
+      throw new Error('Не авторизован')
+    }
+    
+    // Извлекаем userId из токена (формат: mock_jwt_token_${user.id}_${timestamp})
+    // Также проверяем кэш на случай, если он еще доступен
+    let userId = mockCache.tokens[token]
+    
+    if (!userId) {
+      // Пытаемся извлечь userId из самого токена
+      const tokenMatch = token.match(/^mock_jwt_token_(\d+)_/)
+      if (tokenMatch) {
+        userId = tokenMatch[1]
+        // Сохраняем в кэш для будущих запросов
+        mockCache.tokens[token] = userId
+      }
+    }
+    
+    if (!userId) {
+      throw new Error('Не авторизован')
+    }
+    
+    const user = mockCache.users.find((u) => u.id === userId)
+    
+    if (user) {
+      const { password: _, ...userWithoutPassword } = user
+      return {
+        user: userWithoutPassword,
+        success: true,
+      }
+    } else {
+      throw new Error('Пользователь не найден')
     }
   }
 

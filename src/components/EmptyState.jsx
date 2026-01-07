@@ -11,6 +11,11 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material'
 import DescriptionIcon from '@mui/icons-material/Description'
 import AddIcon from '@mui/icons-material/Add'
@@ -20,17 +25,18 @@ const EmptyState = observer(() => {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [pageTitle, setPageTitle] = useState('')
 
+  const selectedSection = cookbookStore.getSelectedSection()
+  const hasPages = selectedSection && selectedSection.pages && selectedSection.pages.length > 0
+
   const handleCreatePageClick = () => {
     setPageTitle('')
     setDialogOpen(true)
   }
 
   const handleCreatePage = async () => {
-    const section = cookbookStore.sections[0]
-    if (section && pageTitle.trim()) {
+    if (selectedSection && pageTitle.trim()) {
       try {
-        const pageId = await cookbookStore.addPage(section.id, pageTitle.trim())
-        cookbookStore.selectSection(section.id)
+        const pageId = await cookbookStore.addPage(selectedSection.id, pageTitle.trim())
         cookbookStore.selectPage(pageId)
         setDialogOpen(false)
         setPageTitle('')
@@ -40,6 +46,173 @@ const EmptyState = observer(() => {
     }
   }
 
+  const handlePageClick = (pageId) => {
+    cookbookStore.selectPage(pageId)
+  }
+
+  // Если выбран раздел с существующими страницами - показываем список
+  if (selectedSection && hasPages) {
+    return (
+      <>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            minHeight: '60vh',
+            pt: 4,
+          }}
+        >
+          <Paper
+            sx={{
+              p: 4,
+              maxWidth: 800,
+              width: '100%',
+            }}
+          >
+            <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
+              Страницы раздела "{selectedSection.title}"
+            </Typography>
+            <List>
+              {selectedSection.pages.map((page) => (
+                <ListItem
+                  key={page.id}
+                  disablePadding
+                  onClick={() => handlePageClick(page.id)}
+                >
+                  <ListItemButton>
+                    <ListItemIcon>
+                      <DescriptionIcon />
+                    </ListItemIcon>
+                    <ListItemText primary={page.title} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          </Paper>
+        </Box>
+        <Dialog
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          maxWidth="sm"
+          sx={{
+            '& .MuiDialog-paper': {
+              width: '100%',
+              maxWidth: '550px',
+            },
+          }}
+        >
+          <DialogTitle>Создать новую страницу</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Название страницы"
+              fullWidth
+              variant="outlined"
+              value={pageTitle}
+              onChange={(e) => setPageTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && pageTitle.trim()) {
+                  handleCreatePage()
+                }
+              }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDialogOpen(false)}>Отмена</Button>
+            <Button
+              onClick={handleCreatePage}
+              variant="contained"
+              disabled={!pageTitle.trim()}
+            >
+              Создать
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </>
+    )
+  }
+
+  // Если выбран пустой раздел - показываем кнопку создания страницы
+  if (selectedSection && !hasPages) {
+    return (
+      <>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '60vh',
+          }}
+        >
+          <Paper
+            sx={{
+              p: 4,
+              textAlign: 'center',
+              maxWidth: 500,
+            }}
+          >
+            <DescriptionIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+            <Typography variant="h5" gutterBottom>
+              Раздел "{selectedSection.title}" пуст
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Создайте первую страницу в этом разделе
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleCreatePageClick}
+            >
+              Создать страницу
+            </Button>
+          </Paper>
+        </Box>
+        <Dialog
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          maxWidth="sm"
+          sx={{
+            '& .MuiDialog-paper': {
+              width: '100%',
+              maxWidth: '550px',
+            },
+          }}
+        >
+          <DialogTitle>Создать новую страницу</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Название страницы"
+              fullWidth
+              variant="outlined"
+              value={pageTitle}
+              onChange={(e) => setPageTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && pageTitle.trim()) {
+                  handleCreatePage()
+                }
+              }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDialogOpen(false)}>Отмена</Button>
+            <Button
+              onClick={handleCreatePage}
+              variant="contained"
+              disabled={!pageTitle.trim()}
+            >
+              Создать
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </>
+    )
+  }
+
+  // Если ничего не выбрано - показываем обычный EmptyState
   return (
     <Box
       sx={{
@@ -64,56 +237,7 @@ const EmptyState = observer(() => {
           Выберите страницу из боковой панели или создайте новую страницу в
           разделе
         </Typography>
-        {cookbookStore.sections.length > 0 && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleCreatePageClick}
-          >
-            Создать страницу
-          </Button>
-        )}
       </Paper>
-
-      <Dialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        maxWidth="sm"
-        sx={{
-          '& .MuiDialog-paper': {
-            width: '100%',
-            maxWidth: '550px',
-          },
-        }}
-      >
-        <DialogTitle>Создать новую страницу</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Название страницы"
-            fullWidth
-            variant="outlined"
-            value={pageTitle}
-            onChange={(e) => setPageTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && pageTitle.trim()) {
-                handleCreatePage()
-              }
-            }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Отмена</Button>
-          <Button
-            onClick={handleCreatePage}
-            variant="contained"
-            disabled={!pageTitle.trim()}
-          >
-            Создать
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   )
 })

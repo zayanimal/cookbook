@@ -69,18 +69,18 @@ const PageView = observer(() => {
   useEffect(() => {
     if (!page || !editorRef.current) return
 
-    let editorInstance = null
+    let isMounted = true
 
     // Уничтожаем предыдущий экземпляр редактора
-    const cleanup = () => {
+    const cleanup = async () => {
       if (editorInstanceRef.current) {
         try {
           // Проверяем наличие метода destroy
           if (typeof editorInstanceRef.current.destroy === 'function') {
-            editorInstanceRef.current.destroy()
+            await editorInstanceRef.current.destroy()
           } else if (typeof editorInstanceRef.current.destroy === 'object' && editorInstanceRef.current.destroy.then) {
             // Если destroy возвращает Promise
-            editorInstanceRef.current.destroy().catch(() => {})
+            await editorInstanceRef.current.destroy().catch(() => {})
           }
         } catch (error) {
           console.warn('Error destroying editor:', error)
@@ -93,12 +93,24 @@ const PageView = observer(() => {
       }
     }
 
-    cleanup()
-
     // Создаем новый экземпляр редактора для текущей страницы
     const initEditor = async () => {
+      // Сначала полностью очищаем предыдущий экземпляр
+      await cleanup()
+
+      // Небольшая задержка для гарантии полной очистки DOM
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      // Проверяем, что компонент все еще смонтирован и страница не изменилась
+      if (!isMounted || !editorRef.current || !page) return
+
+      // Проверяем, что контейнер пуст
+      if (editorRef.current.innerHTML.trim() !== '') {
+        editorRef.current.innerHTML = ''
+      }
+
       try {
-        editorInstance = new EditorJS({
+        const editorInstance = new EditorJS({
           holder: editorRef.current,
           tools: {
             header: {
@@ -169,11 +181,14 @@ const PageView = observer(() => {
               },
             },
           },
-          data: page.content,
+          data: page.content || { blocks: [] },
           placeholder: 'Начните вводить текст...',
           autofocus: false,
         })
-        editorInstanceRef.current = editorInstance
+        
+        if (isMounted) {
+          editorInstanceRef.current = editorInstance
+        }
       } catch (error) {
         console.error('Error initializing editor:', error)
       }
@@ -182,6 +197,7 @@ const PageView = observer(() => {
     initEditor()
 
     return () => {
+      isMounted = false
       cleanup()
     }
   }, [page?.id])

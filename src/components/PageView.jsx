@@ -13,8 +13,6 @@ import Image from '@editorjs/image'
 import {
   Box,
   Typography,
-  IconButton,
-  TextField,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -22,10 +20,13 @@ import {
   Button,
   Paper,
   Toolbar,
+  IconButton,
+  Tooltip,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import SaveIcon from '@mui/icons-material/Save'
+import CloseIcon from '@mui/icons-material/Close'
 import styled from '@emotion/styled'
 
 const EditorContainer = styled(Box)(({ theme }) => ({
@@ -59,52 +60,49 @@ const PageView = observer(() => {
   const { cookbookStore } = useStores()
   const editorRef = useRef(null)
   const editorInstanceRef = useRef(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [editTitle, setEditTitle] = useState('')
+  const [isEditMode, setIsEditMode] = useState(false) // Режим редактирования выключен по умолчанию
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   const page = cookbookStore.getSelectedPage()
   const section = cookbookStore.getSelectedSection()
 
+  // Уничтожаем предыдущий экземпляр редактора
+  const cleanup = async () => {
+    if (editorInstanceRef.current) {
+      try {
+        if (typeof editorInstanceRef.current.destroy === 'function') {
+          await editorInstanceRef.current.destroy()
+        } else if (typeof editorInstanceRef.current.destroy === 'object' && editorInstanceRef.current.destroy.then) {
+          await editorInstanceRef.current.destroy().catch(() => {})
+        }
+      } catch (error) {
+        console.warn('Error destroying editor:', error)
+      }
+      editorInstanceRef.current = null
+    }
+    if (editorRef.current) {
+      editorRef.current.innerHTML = ''
+    }
+  }
+
+  // Инициализация редактора при включении режима редактирования
   useEffect(() => {
-    if (!page || !editorRef.current) return
+    if (!page || !editorRef.current || !isEditMode) {
+      // Если режим редактирования выключен - очищаем редактор
+      if (!isEditMode) {
+        cleanup()
+      }
+      return
+    }
 
     let isMounted = true
 
-    // Уничтожаем предыдущий экземпляр редактора
-    const cleanup = async () => {
-      if (editorInstanceRef.current) {
-        try {
-          // Проверяем наличие метода destroy
-          if (typeof editorInstanceRef.current.destroy === 'function') {
-            await editorInstanceRef.current.destroy()
-          } else if (typeof editorInstanceRef.current.destroy === 'object' && editorInstanceRef.current.destroy.then) {
-            // Если destroy возвращает Promise
-            await editorInstanceRef.current.destroy().catch(() => {})
-          }
-        } catch (error) {
-          console.warn('Error destroying editor:', error)
-        }
-        editorInstanceRef.current = null
-      }
-      // Очищаем контейнер
-      if (editorRef.current) {
-        editorRef.current.innerHTML = ''
-      }
-    }
-
-    // Создаем новый экземпляр редактора для текущей страницы
     const initEditor = async () => {
-      // Сначала полностью очищаем предыдущий экземпляр
       await cleanup()
-
-      // Небольшая задержка для гарантии полной очистки DOM
       await new Promise((resolve) => setTimeout(resolve, 100))
 
-      // Проверяем, что компонент все еще смонтирован и страница не изменилась
       if (!isMounted || !editorRef.current || !page) return
 
-      // Проверяем, что контейнер пуст
       if (editorRef.current.innerHTML.trim() !== '') {
         editorRef.current.innerHTML = ''
       }
@@ -154,12 +152,6 @@ const PageView = observer(() => {
                 cols: 2,
               },
             },
-            // linkTool: {
-            //   class: LinkTool,
-            //   config: {
-            //     endpoint: '/api/link',
-            //   },
-            // },
             image: {
               class: Image,
               config: {
@@ -168,8 +160,6 @@ const PageView = observer(() => {
                 },
                 uploader: {
                   async uploadByFile(file) {
-                    // Простая заглушка для загрузки изображений
-                    // В реальном приложении здесь должен быть API endpoint
                     return {
                       success: 1,
                       file: {
@@ -183,9 +173,9 @@ const PageView = observer(() => {
           },
           data: page.content || { blocks: [] },
           placeholder: 'Начните вводить текст...',
-          autofocus: false,
+          autofocus: true,
         })
-        
+
         if (isMounted) {
           editorInstanceRef.current = editorInstance
         }
@@ -200,22 +190,25 @@ const PageView = observer(() => {
       isMounted = false
       cleanup()
     }
+  }, [page?.id, isEditMode])
+
+  // Сбрасываем режим редактирования при смене страницы
+  useEffect(() => {
+    setIsEditMode(false)
   }, [page?.id])
 
-  useEffect(() => {
-    if (page) {
-      setEditTitle(page.title)
-    }
-  }, [page])
+  const handleEnableEditMode = () => {
+    setIsEditMode(true)
+  }
 
-  const handleSave = async () => {
+  const handleSaveAndExit = async () => {
     if (editorInstanceRef.current) {
       try {
         const outputData = await editorInstanceRef.current.save()
         await cookbookStore.updatePage(section.id, page.id, {
           content: outputData,
         })
-        // Можно показать уведомление об успешном сохранении
+        setIsEditMode(false)
       } catch (error) {
         console.error('Error saving editor content:', error)
         alert('Ошибка сохранения страницы: ' + (error.message || 'Неизвестная ошибка'))
@@ -223,26 +216,8 @@ const PageView = observer(() => {
     }
   }
 
-  const handleEditTitle = () => {
-    setIsEditing(true)
-  }
-
-  const handleSaveTitle = async () => {
-    if (editTitle.trim()) {
-      try {
-        await cookbookStore.updatePage(section.id, page.id, {
-          title: editTitle.trim(),
-        })
-        setIsEditing(false)
-      } catch (error) {
-        alert('Ошибка обновления названия: ' + (error.message || 'Неизвестная ошибка'))
-      }
-    }
-  }
-
   const handleCancelEdit = () => {
-    setEditTitle(page.title)
-    setIsEditing(false)
+    setIsEditMode(false)
   }
 
   const handleDelete = () => {
@@ -263,101 +238,214 @@ const PageView = observer(() => {
     return null
   }
 
+  // Рендеринг контента в режиме просмотра
+  const renderContent = () => {
+    if (!page.content || !page.content.blocks || page.content.blocks.length === 0) {
+      return (
+        <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+          Страница пуста. Нажмите "Редактировать" для добавления содержимого.
+        </Typography>
+      )
+    }
+
+    return page.content.blocks.map((block, index) => {
+      switch (block.type) {
+        case 'header':
+          const HeaderTag = `h${block.data.level || 2}`
+          return (
+            <Typography
+              key={index}
+              variant={`h${block.data.level + 2 || 4}`}
+              component={HeaderTag}
+              sx={{ mt: index > 0 ? 3 : 0, mb: 2 }}
+            >
+              {block.data.text}
+            </Typography>
+          )
+        case 'paragraph':
+          return (
+            <Typography
+              key={index}
+              variant="body1"
+              sx={{ mb: 2 }}
+              dangerouslySetInnerHTML={{ __html: block.data.text }}
+            />
+          )
+        case 'list':
+          const ListTag = block.data.style === 'ordered' ? 'ol' : 'ul'
+          return (
+            <Box key={index} component={ListTag} sx={{ mb: 2, pl: 3 }}>
+              {block.data.items.map((item, itemIndex) => (
+                <li key={itemIndex} dangerouslySetInnerHTML={{ __html: item }} />
+              ))}
+            </Box>
+          )
+        case 'code':
+          return (
+            <Box
+              key={index}
+              component="pre"
+              sx={{
+                backgroundColor: 'grey.100',
+                p: 2,
+                borderRadius: 1,
+                overflow: 'auto',
+                mb: 2,
+                fontFamily: 'monospace',
+              }}
+            >
+              <code>{block.data.code}</code>
+            </Box>
+          )
+        case 'quote':
+          return (
+            <Box
+              key={index}
+              sx={{
+                borderLeft: 4,
+                borderColor: 'primary.main',
+                pl: 2,
+                py: 1,
+                mb: 2,
+                fontStyle: 'italic',
+              }}
+            >
+              <Typography variant="body1">{block.data.text}</Typography>
+              {block.data.caption && (
+                <Typography variant="caption" color="text.secondary">
+                  — {block.data.caption}
+                </Typography>
+              )}
+            </Box>
+          )
+        case 'image':
+          return (
+            <Box key={index} sx={{ mb: 2, textAlign: 'center' }}>
+              <img
+                src={block.data.file?.url}
+                alt={block.data.caption || ''}
+                style={{ maxWidth: '100%', height: 'auto' }}
+              />
+              {block.data.caption && (
+                <Typography variant="caption" color="text.secondary" display="block">
+                  {block.data.caption}
+                </Typography>
+              )}
+            </Box>
+          )
+        case 'table':
+          return (
+            <Box key={index} sx={{ mb: 2, overflow: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tbody>
+                  {block.data.content.map((row, rowIndex) => (
+                    <tr key={rowIndex}>
+                      {row.map((cell, cellIndex) => (
+                        <td
+                          key={cellIndex}
+                          style={{
+                            border: '1px solid #ddd',
+                            padding: '8px',
+                          }}
+                          dangerouslySetInnerHTML={{ __html: cell }}
+                        />
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Box>
+          )
+        default:
+          return null
+      }
+    })
+  }
+
   return (
     <Paper sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, mx: 'auto' }}>
       <Toolbar
         sx={{
           px: 0,
-          minHeight: 'auto',
+          py: 0,
+          minHeight: '32px !important',
+          height: '32px',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 2,
+          mb: 0,
         }}
       >
-        <Box sx={{ flexGrow: 1, minWidth: 200 }}>
-          {isEditing ? (
-            <TextField
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  handleSaveTitle()
-                } else if (e.key === 'Escape') {
-                  handleCancelEdit()
-                }
-              }}
-              autoFocus
-              fullWidth
-              variant="standard"
-              sx={{ fontSize: '1.5rem' }}
-            />
-          ) : (
-            <Typography
-              variant="h4"
-              component="h1"
-              sx={{
-                fontWeight: 600,
-                cursor: 'pointer',
-                '&:hover': {
-                  opacity: 0.7,
-                },
-              }}
-              onClick={handleEditTitle}
-            >
-              {page.title}
-            </Typography>
-          )}
-          {isEditing && (
-            <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
-              <Button
-                size="small"
-                variant="contained"
-                startIcon={<SaveIcon />}
-                onClick={handleSaveTitle}
-              >
-                Сохранить
-              </Button>
-              <Button size="small" onClick={handleCancelEdit}>
-                Отмена
-              </Button>
-            </Box>
-          )}
-        </Box>
+        <Box sx={{ flexGrow: 1, minWidth: 200 }}></Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <IconButton
-            color="primary"
-            onClick={handleSave}
-            title="Сохранить изменения"
-          >
-            <SaveIcon />
-          </IconButton>
-          <IconButton
-            color="primary"
-            onClick={handleEditTitle}
-            title="Редактировать название"
-          >
-            <EditIcon />
-          </IconButton>
-          <IconButton
-            color="error"
-            onClick={handleDelete}
-            title="Удалить страницу"
-          >
-            <DeleteIcon />
-          </IconButton>
+          {isEditMode ? (
+            <>
+              <Tooltip title="Сохранить">
+                <IconButton
+                  size="small"
+                  onClick={handleSaveAndExit}
+                  sx={{
+                    color: 'primary.main',
+                  }}
+                >
+                  <SaveIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Отмена">
+                <IconButton
+                  size="small"
+                  onClick={handleCancelEdit}
+                  sx={{
+                    color: 'text.primary',
+                  }}
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </>
+          ) : (
+            <>
+              <Tooltip title="Редактировать">
+                <IconButton
+                  size="small"
+                  onClick={handleEnableEditMode}
+                  sx={{
+                    color: 'primary.main',
+                  }}
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Удалить">
+                <IconButton
+                  size="small"
+                  onClick={handleDelete}
+                  sx={{
+                    color: 'error.main',
+                  }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </>
+          )}
         </Box>
       </Toolbar>
 
-      <Box sx={{ mt: 4 }}>
-        <EditorContainer>
-          <div
-            ref={editorRef}
-            id="editorjs"
-            style={{
-              minHeight: '400px',
-            }}
-          />
-        </EditorContainer>
+      <Box sx={{ mt: 0, pt: 0 }}>
+        {isEditMode ? (
+          <EditorContainer>
+            <div
+              ref={editorRef}
+              id="editorjs"
+              style={{
+                minHeight: '400px',
+              }}
+            />
+          </EditorContainer>
+        ) : (
+          <Box>{renderContent()}</Box>
+        )}
       </Box>
 
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>

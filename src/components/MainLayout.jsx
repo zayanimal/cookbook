@@ -99,7 +99,7 @@ const MainLayout = observer(() => {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div">
-            Cookbook - Инженерные системы дома
+            Cookbook
           </Typography>
         </Toolbar>
       </AppBar>

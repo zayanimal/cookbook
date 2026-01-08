@@ -1,0 +1,863 @@
+openapi: 3.0.3
+info:
+  title: Cookbook API
+  description: |
+    REST API для системы документации Cookbook.
+    
+    API предоставляет функциональность для управления разделами и страницами документации.
+    Все операции требуют авторизации через JWT токен, кроме эндпоинта `/auth/login`.
+    
+    Роли пользователей:
+    - **admin** - полные права на редактирование и добавление контента
+    - **client** - только просмотр, без прав на редактирование
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: /api
+    description: Основной сервер API
+  - url: http://localhost:3000/api
+    description: Локальный сервер разработки
+
+tags:
+  - name: Authentication
+    description: Операции авторизации и аутентификации
+  - name: Sections
+    description: Управление разделами документации
+  - name: Pages
+    description: Управление страницами документации
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Авторизация пользователя
+      description: Выполняет вход пользователя и возвращает JWT токен
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: admin
+              password: admin123
+      responses:
+        '200':
+          description: Успешная авторизация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                user:
+                  id: "1"
+                  username: admin
+                  role: admin
+                  name: Администратор
+                success: true
+        '401':
+          description: Неверное имя пользователя или пароль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Неверное имя пользователя или пароль
+                success: false
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Выход пользователя
+      description: Выполняет выход пользователя и инвалидирует токен
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Успешный выход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: Выход выполнен успешно
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Получить данные текущего пользователя
+      description: Возвращает информацию о текущем авторизованном пользователе
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Данные пользователя
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  success:
+                    type: boolean
+                    example: true
+              example:
+                user:
+                  id: "1"
+                  username: admin
+                  role: admin
+                  name: Администратор
+                success: true
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sections:
+    get:
+      tags:
+        - Sections
+      summary: Получить все разделы
+      description: Возвращает список всех разделов документации
+      operationId: getAllSections
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список разделов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Section'
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Sections
+      summary: Создать новый раздел
+      description: Создает новый раздел документации. Требует роль администратора.
+      operationId: createSection
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSectionRequest'
+            example:
+              title: Новый раздел
+      responses:
+        '200':
+          description: Раздел успешно создан
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Section'
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Неверный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Доступ запрещен (недостаточно прав)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sections/{sectionId}:
+    get:
+      tags:
+        - Sections
+      summary: Получить раздел по ID
+      description: Возвращает информацию о конкретном разделе
+      operationId: getSectionById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sectionId
+          in: path
+          required: true
+          description: ID раздела
+          schema:
+            type: string
+          example: "1"
+      responses:
+        '200':
+          description: Данные раздела
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Section'
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Раздел не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Sections
+      summary: Обновить раздел
+      description: Обновляет название раздела. Требует роль администратора.
+      operationId: updateSection
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sectionId
+          in: path
+          required: true
+          description: ID раздела
+          schema:
+            type: string
+          example: "1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSectionRequest'
+            example:
+              title: Обновленное название
+      responses:
+        '200':
+          description: Раздел успешно обновлен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Section'
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Неверный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Доступ запрещен (недостаточно прав)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Раздел не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Sections
+      summary: Удалить раздел
+      description: Удаляет раздел и все его страницы. Требует роль администратора.
+      operationId: deleteSection
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sectionId
+          in: path
+          required: true
+          description: ID раздела
+          schema:
+            type: string
+          example: "1"
+      responses:
+        '200':
+          description: Раздел успешно удален
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Доступ запрещен (недостаточно прав)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Раздел не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sections/{sectionId}/pages:
+    get:
+      tags:
+        - Pages
+      summary: Получить все страницы раздела
+      description: Возвращает список всех страниц в указанном разделе
+      operationId: getPagesBySection
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sectionId
+          in: path
+          required: true
+          description: ID раздела
+          schema:
+            type: string
+          example: "1"
+      responses:
+        '200':
+          description: Список страниц
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Page'
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Раздел не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Pages
+      summary: Создать новую страницу
+      description: Создает новую страницу в указанном разделе. Требует роль администратора.
+      operationId: createPage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sectionId
+          in: path
+          required: true
+          description: ID раздела
+          schema:
+            type: string
+          example: "1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePageRequest'
+            example:
+              title: Новая страница
+              content:
+                blocks: []
+      responses:
+        '200':
+          description: Страница успешно создана
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Page'
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Неверный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Доступ запрещен (недостаточно прав)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Раздел не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sections/{sectionId}/pages/{pageId}:
+    get:
+      tags:
+        - Pages
+      summary: Получить страницу по ID
+      description: Возвращает информацию о конкретной странице
+      operationId: getPageById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sectionId
+          in: path
+          required: true
+          description: ID раздела
+          schema:
+            type: string
+          example: "1"
+        - name: pageId
+          in: path
+          required: true
+          description: ID страницы
+          schema:
+            type: string
+          example: "1-1"
+      responses:
+        '200':
+          description: Данные страницы
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Page'
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Страница не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Pages
+      summary: Обновить страницу
+      description: Обновляет страницу (название и/или содержимое). Требует роль администратора.
+      operationId: updatePage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sectionId
+          in: path
+          required: true
+          description: ID раздела
+          schema:
+            type: string
+          example: "1"
+        - name: pageId
+          in: path
+          required: true
+          description: ID страницы
+          schema:
+            type: string
+          example: "1-1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePageRequest'
+            example:
+              title: Обновленное название
+              content:
+                blocks:
+                  - type: paragraph
+                    data:
+                      text: Обновленный текст
+      responses:
+        '200':
+          description: Страница успешно обновлена
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Page'
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Неверный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Доступ запрещен (недостаточно прав)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Страница не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Pages
+      summary: Удалить страницу
+      description: Удаляет страницу. Требует роль администратора.
+      operationId: deletePage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sectionId
+          in: path
+          required: true
+          description: ID раздела
+          schema:
+            type: string
+          example: "1"
+        - name: pageId
+          in: path
+          required: true
+          description: ID страницы
+          schema:
+            type: string
+          example: "1-1"
+      responses:
+        '200':
+          description: Страница успешно удалена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Доступ запрещен (недостаточно прав)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Страница не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT токен авторизации. Получается через эндпоинт /auth/login
+
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - username
+        - role
+      properties:
+        id:
+          type: string
+          description: Уникальный идентификатор пользователя
+          example: "1"
+        username:
+          type: string
+          description: Имя пользователя
+          example: admin
+        role:
+          type: string
+          enum: [admin, client]
+          description: Роль пользователя
+          example: admin
+        name:
+          type: string
+          description: Отображаемое имя пользователя
+          example: Администратор
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: Имя пользователя
+          example: admin
+        password:
+          type: string
+          format: password
+          description: Пароль пользователя
+          example: admin123
+
+    LoginResponse:
+      type: object
+      required:
+        - token
+        - user
+        - success
+      properties:
+        token:
+          type: string
+          description: JWT токен для последующих запросов
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        user:
+          $ref: '#/components/schemas/User'
+        success:
+          type: boolean
+          example: true
+
+    Section:
+      type: object
+      required:
+        - id
+        - title
+      properties:
+        id:
+          type: string
+          description: Уникальный идентификатор раздела
+          example: "1"
+        title:
+          type: string
+          description: Название раздела
+          example: Отопление
+        pages:
+          type: array
+          description: Список страниц раздела (опционально, может отсутствовать в некоторых ответах)
+          items:
+            $ref: '#/components/schemas/Page'
+
+    CreateSectionRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          description: Название раздела
+          minLength: 1
+          example: Новый раздел
+
+    UpdateSectionRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          description: Новое название раздела
+          minLength: 1
+          example: Обновленное название
+
+    Page:
+      type: object
+      required:
+        - id
+        - title
+        - content
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          description: Уникальный идентификатор страницы
+          example: "1-1"
+        title:
+          type: string
+          description: Название страницы
+          example: Общая информация
+        content:
+          $ref: '#/components/schemas/EditorJSContent'
+        createdAt:
+          type: string
+          format: date-time
+          description: Дата и время создания (ISO 8601)
+          example: "2024-01-15T10:00:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Дата и время последнего обновления (ISO 8601)
+          example: "2024-01-15T10:00:00.000Z"
+
+    EditorJSContent:
+      type: object
+      required:
+        - blocks
+      properties:
+        blocks:
+          type: array
+          description: Массив блоков контента в формате EditorJS
+          items:
+            $ref: '#/components/schemas/EditorJSBlock'
+
+    EditorJSBlock:
+      type: object
+      required:
+        - type
+        - data
+      properties:
+        type:
+          type: string
+          enum: [header, paragraph, list, code, quote, table, image]
+          description: Тип блока
+          example: paragraph
+        data:
+          type: object
+          description: Данные блока (структура зависит от типа)
+          additionalProperties: true
+          example:
+            text: Текст параграфа
+
+    CreatePageRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          description: Название страницы
+          minLength: 1
+          example: Новая страница
+        content:
+          $ref: '#/components/schemas/EditorJSContent'
+          description: Содержимое страницы (опционально, по умолчанию пустое)
+
+    UpdatePageRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Новое название страницы
+          minLength: 1
+          example: Обновленное название
+        content:
+          $ref: '#/components/schemas/EditorJSContent'
+          description: Новое содержимое страницы
+
+    SuccessResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          description: Сообщение об успешном выполнении операции
+          example: Выход выполнен успешно
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - success
+      properties:
+        error:
+          type: string
+          description: Описание ошибки
+          example: Неверный запрос
+        success:
+          type: boolean
+          example: false

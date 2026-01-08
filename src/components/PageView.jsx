@@ -19,7 +19,6 @@ import {
   DialogActions,
   Button,
   Paper,
-  Toolbar,
   IconButton,
   Tooltip,
   TextField,
@@ -67,7 +66,6 @@ const PageView = observer(() => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editedTitle, setEditedTitle] = useState('')
-  const [isHoveringContent, setIsHoveringContent] = useState(false)
 
   const page = cookbookStore.getSelectedPage()
   const section = cookbookStore.getSelectedSection()
@@ -297,7 +295,7 @@ const PageView = observer(() => {
           return (
             <Typography
               key={index}
-              variant={`h${block.data.level + 2 || 4}`}
+              variant={`h${block.data.level + 3 || 5}`}
               component={HeaderTag}
               sx={{ mt: index > 0 ? 3 : 0, mb: 2 }}
             >
@@ -407,7 +405,7 @@ const PageView = observer(() => {
   return (
     <Paper sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, mx: 'auto' }}>
       {/* Заголовок страницы с возможностью редактирования */}
-      <Box sx={{ mb: 1 }}>
+      <Box sx={{ mb: 3 }}>
         {isEditingTitle && authStore.canEdit ? (
           <TextField
             fullWidth
@@ -444,7 +442,7 @@ const PageView = observer(() => {
             }}
             sx={{
               '& .MuiInputBase-root': {
-                fontSize: '2rem',
+                fontSize: '1.5rem',
                 fontWeight: 500,
               },
             }}
@@ -467,7 +465,7 @@ const PageView = observer(() => {
             onClick={authStore.canEdit ? handleStartEditTitle : undefined}
           >
             <Typography
-              variant="h4"
+              variant="h5"
               component="h1"
               sx={{
                 fontWeight: 500,
@@ -496,25 +494,24 @@ const PageView = observer(() => {
         )}
       </Box>
 
-      <Toolbar
+      <Box
         sx={{
-          px: 0,
-          py: 0,
-          minHeight: '32px !important',
-          height: '32px',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 2,
-          mb: 1,
-          opacity: isEditMode || isHoveringContent ? 1 : 0,
-          transition: 'opacity 0.2s',
+          mt: 0,
+          pt: 0,
+          position: 'relative',
         }}
-        onMouseEnter={() => setIsHoveringContent(true)}
-        onMouseLeave={() => setIsHoveringContent(false)}
       >
-        <Box sx={{ flexGrow: 1, minWidth: 200 }}></Box>
         {authStore.canEdit && (
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              display: 'flex',
+              gap: 1,
+              zIndex: 10,
+            }}
+          >
             {isEditMode ? (
               <>
                 <Tooltip title="Сохранить">
@@ -568,13 +565,6 @@ const PageView = observer(() => {
             )}
           </Box>
         )}
-      </Toolbar>
-
-      <Box
-        sx={{ mt: 0, pt: 0 }}
-        onMouseEnter={() => setIsHoveringContent(true)}
-        onMouseLeave={() => setIsHoveringContent(false)}
-      >
         {isEditMode ? (
           <EditorContainer>
             <div

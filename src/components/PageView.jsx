@@ -22,11 +22,14 @@ import {
   Toolbar,
   IconButton,
   Tooltip,
+  TextField,
+  InputAdornment,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import SaveIcon from '@mui/icons-material/Save'
 import CloseIcon from '@mui/icons-material/Close'
+import TitleIcon from '@mui/icons-material/Title'
 import styled from '@emotion/styled'
 
 const EditorContainer = styled(Box)(({ theme }) => ({
@@ -62,9 +65,20 @@ const PageView = observer(() => {
   const editorInstanceRef = useRef(null)
   const [isEditMode, setIsEditMode] = useState(false) // Режим редактирования выключен по умолчанию
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [editedTitle, setEditedTitle] = useState('')
+  const [isHoveringContent, setIsHoveringContent] = useState(false)
 
   const page = cookbookStore.getSelectedPage()
   const section = cookbookStore.getSelectedSection()
+
+  // Инициализируем editedTitle при изменении страницы
+  useEffect(() => {
+    if (page) {
+      setEditedTitle(page.title)
+      setIsEditingTitle(false)
+    }
+  }, [page?.id])
 
   // Уничтожаем предыдущий экземпляр редактора
   const cleanup = async () => {
@@ -220,6 +234,34 @@ const PageView = observer(() => {
     setIsEditMode(false)
   }
 
+  const handleStartEditTitle = () => {
+    setEditedTitle(page.title)
+    setIsEditingTitle(true)
+  }
+
+  const handleSaveTitle = async () => {
+    if (editedTitle.trim() && editedTitle.trim() !== page.title) {
+      try {
+        await cookbookStore.updatePage(section.id, page.id, {
+          title: editedTitle.trim(),
+        })
+        setIsEditingTitle(false)
+      } catch (error) {
+        console.error('Error saving page title:', error)
+        alert('Ошибка сохранения названия страницы: ' + (error.message || 'Неизвестная ошибка'))
+        setEditedTitle(page.title) // Восстанавливаем исходное значение
+      }
+    } else {
+      setIsEditingTitle(false)
+      setEditedTitle(page.title) // Восстанавливаем исходное значение
+    }
+  }
+
+  const handleCancelEditTitle = () => {
+    setIsEditingTitle(false)
+    setEditedTitle(page.title) // Восстанавливаем исходное значение
+  }
+
   const handleDelete = () => {
     setDeleteDialogOpen(true)
   }
@@ -364,6 +406,96 @@ const PageView = observer(() => {
 
   return (
     <Paper sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, mx: 'auto' }}>
+      {/* Заголовок страницы с возможностью редактирования */}
+      <Box sx={{ mb: 1 }}>
+        {isEditingTitle && authStore.canEdit ? (
+          <TextField
+            fullWidth
+            value={editedTitle}
+            onChange={(e) => setEditedTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleSaveTitle()
+              } else if (e.key === 'Escape') {
+                handleCancelEditTitle()
+              }
+            }}
+            autoFocus
+            variant="standard"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    onClick={handleSaveTitle}
+                    sx={{ color: 'primary.main' }}
+                  >
+                    <SaveIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={handleCancelEditTitle}
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              '& .MuiInputBase-root': {
+                fontSize: '2rem',
+                fontWeight: 500,
+              },
+            }}
+          />
+        ) : (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              cursor: authStore.canEdit ? 'pointer' : 'default',
+              '&:hover': authStore.canEdit
+                ? {
+                    '& .edit-title-icon': {
+                      opacity: 1,
+                    },
+                }
+                : {},
+            }}
+            onClick={authStore.canEdit ? handleStartEditTitle : undefined}
+          >
+            <Typography
+              variant="h4"
+              component="h1"
+              sx={{
+                fontWeight: 500,
+                flexGrow: 1,
+                wordBreak: 'break-word',
+              }}
+            >
+              {page.title}
+            </Typography>
+            {authStore.canEdit && (
+              <Tooltip title="Редактировать название">
+                <IconButton
+                  size="small"
+                  className="edit-title-icon"
+                  sx={{
+                    opacity: 0,
+                    transition: 'opacity 0.2s',
+                    color: 'primary.main',
+                  }}
+                >
+                  <TitleIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
+        )}
+      </Box>
+
       <Toolbar
         sx={{
           px: 0,
@@ -373,8 +505,12 @@ const PageView = observer(() => {
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 2,
-          mb: 0,
+          mb: 1,
+          opacity: isEditMode || isHoveringContent ? 1 : 0,
+          transition: 'opacity 0.2s',
         }}
+        onMouseEnter={() => setIsHoveringContent(true)}
+        onMouseLeave={() => setIsHoveringContent(false)}
       >
         <Box sx={{ flexGrow: 1, minWidth: 200 }}></Box>
         {authStore.canEdit && (
@@ -406,7 +542,7 @@ const PageView = observer(() => {
               </>
             ) : (
               <>
-                <Tooltip title="Редактировать">
+                <Tooltip title="Редактировать содержимое">
                   <IconButton
                     size="small"
                     onClick={handleEnableEditMode}
@@ -434,7 +570,11 @@ const PageView = observer(() => {
         )}
       </Toolbar>
 
-      <Box sx={{ mt: 0, pt: 0 }}>
+      <Box
+        sx={{ mt: 0, pt: 0 }}
+        onMouseEnter={() => setIsHoveringContent(true)}
+        onMouseLeave={() => setIsHoveringContent(false)}
+      >
         {isEditMode ? (
           <EditorContainer>
             <div

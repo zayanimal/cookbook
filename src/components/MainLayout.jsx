@@ -19,9 +19,11 @@ import {
 import MenuIcon from '@mui/icons-material/Menu'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import LogoutIcon from '@mui/icons-material/Logout'
+import SearchIcon from '@mui/icons-material/Search'
 import Sidebar from './Sidebar'
 import PageView from './PageView'
 import EmptyState from './EmptyState'
+import SearchDialog from './SearchDialog'
 import styled from '@emotion/styled'
 
 const DrawerHeader = styled('div')(({ theme }) => ({
@@ -50,6 +52,7 @@ const MainLayout = observer(() => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false)
 
   useEffect(() => {
     cookbookStore.setSidebarOpen(!isMobile)
@@ -77,6 +80,21 @@ const MainLayout = observer(() => {
     await authStore.logout()
     navigate('/login')
   }
+
+  // Обработка горячей клавиши для поиска (Ctrl+K / Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+        event.preventDefault()
+        setSearchDialogOpen(true)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -112,6 +130,14 @@ const MainLayout = observer(() => {
           </Typography>
           {authStore.user && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <IconButton
+                color="inherit"
+                onClick={() => setSearchDialogOpen(true)}
+                sx={{ mr: 1 }}
+                title="Поиск"
+              >
+                <SearchIcon />
+              </IconButton>
               <Typography variant="body2" sx={{ color: 'white', mr: 1 }}>
                 {authStore.user.username}
               </Typography>
@@ -205,6 +231,7 @@ const MainLayout = observer(() => {
           <EmptyState />
         )}
       </MainContent>
+      <SearchDialog open={searchDialogOpen} onClose={() => setSearchDialogOpen(false)} />
     </Box>
   )
 })

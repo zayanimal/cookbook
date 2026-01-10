@@ -19,7 +19,7 @@ const axiosInstance = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 10000, // 10 секунд таймаут
-  withCredentials: true, // Для отправки cookies
+  withCredentials: true, // Для отправки cookies (требуется для CORS с credentials)
 })
 
 // Интерцептор для добавления JWT токена в заголовки запросов

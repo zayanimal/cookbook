@@ -162,6 +162,20 @@ class CookbookStore {
   }
 
   /**
+   * Установить ширину боковой панели
+   */
+  setSidebarWidth(width) {
+    this.uiStore.setSidebarWidth(width)
+  }
+
+  /**
+   * Установить состояние изменения размера
+   */
+  setIsResizing(resizing) {
+    this.uiStore.setIsResizing(resizing)
+  }
+
+  /**
    * Очистить ошибку
    */
   clearError() {
@@ -185,6 +199,14 @@ class CookbookStore {
 
   get sidebarOpen() {
     return this.uiStore.sidebarOpen
+  }
+
+  get sidebarWidth() {
+    return this.uiStore.sidebarWidth
+  }
+
+  get isResizing() {
+    return this.uiStore.isResizing
   }
 
   get loading() {

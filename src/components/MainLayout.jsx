@@ -24,6 +24,7 @@ import Sidebar from './Sidebar'
 import PageView from './PageView'
 import EmptyState from './EmptyState'
 import SearchDialog from './SearchDialog'
+import ResizeHandle from './ResizeHandle'
 import styled from '@emotion/styled'
 
 const DrawerHeader = styled('div')(({ theme }) => ({
@@ -43,8 +44,6 @@ const MainContent = styled(Box)(({ theme }) => ({
     padding: theme.spacing(2),
   },
 }))
-
-const drawerWidth = 280
 
 const MainLayout = observer(() => {
   const { cookbookStore, authStore } = useStores()
@@ -101,7 +100,7 @@ const MainLayout = observer(() => {
   }, [])
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}
@@ -161,13 +160,17 @@ const MainLayout = observer(() => {
       <Box
         component="nav"
         sx={(theme) => ({
-          width: { md: cookbookStore.sidebarOpen ? drawerWidth : 0 },
+          width: { md: cookbookStore.sidebarOpen ? cookbookStore.sidebarWidth : 0 },
           flexShrink: { md: 0 },
           overflow: 'hidden',
-          transition: theme.transitions.create('width', {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.enteringScreen,
-          }),
+          height: '100vh',
+          transition: cookbookStore.isResizing
+            ? 'none'
+            : theme.transitions.create('width', {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }),
+          position: 'relative',
         })}
       >
         {isMobile ? (
@@ -181,7 +184,7 @@ const MainLayout = observer(() => {
             sx={{
               '& .MuiDrawer-paper': {
                 boxSizing: 'border-box',
-                width: drawerWidth,
+                width: 280,
               },
             }}
           >
@@ -197,9 +200,18 @@ const MainLayout = observer(() => {
             variant="persistent"
             open={cookbookStore.sidebarOpen}
             sx={{
+              height: '100vh',
               '& .MuiDrawer-paper': {
                 boxSizing: 'border-box',
-                width: drawerWidth,
+                width: cookbookStore.sidebarWidth,
+                position: 'relative',
+                height: '100vh',
+                top: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                transition: cookbookStore.isResizing
+                  ? 'none'
+                  : 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               },
             }}
           >
@@ -211,7 +223,18 @@ const MainLayout = observer(() => {
                 <ChevronLeftIcon />
               </IconButton>
             </DrawerHeader>
-            <Sidebar />
+            <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <Sidebar />
+            </Box>
+            {cookbookStore.sidebarOpen && (
+              <ResizeHandle
+                onResize={(width) => cookbookStore.setSidebarWidth(width)}
+                onResizeStart={() => cookbookStore.setIsResizing(true)}
+                onResizeEnd={() => cookbookStore.setIsResizing(false)}
+                minWidth={200}
+                maxWidth={600}
+              />
+            )}
           </Drawer>
         )}
       </Box>

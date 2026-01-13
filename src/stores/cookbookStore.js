@@ -6,13 +6,11 @@ import { uiStore } from './uiStore'
  * Главный store, объединяющий все функциональные области
  */
 class CookbookStore {
+  
   constructor() {
     this.sectionsStore = sectionsStore
     this.pagesStore = createPagesStore(sectionsStore)
     this.uiStore = uiStore
-
-    // Загружаем разделы при инициализации
-    this.sectionsStore.loadSections()
   }
 
   /**

@@ -55,6 +55,10 @@ const MainLayout = observer(() => {
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
 
   useEffect(() => {
+    cookbookStore.loadSections()
+  }, []);
+
+  useEffect(() => {
     cookbookStore.setSidebarOpen(!isMobile)
   }, [isMobile, cookbookStore])
 

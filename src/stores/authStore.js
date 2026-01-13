@@ -16,9 +16,13 @@ class AuthStore {
   isAuthenticated = false
   loading = false
   error = null
+  userLoaded = false
+  _fetchUserPromise = null
 
   constructor() {
-    makeAutoObservable(this)
+    makeAutoObservable(this, {
+      _fetchUserPromise: false, // Исключаем из observable, это внутренний механизм
+    })
     // Не вызываем initializeAuth здесь, это делается в App.jsx
     // чтобы контролировать процесс инициализации
   }
@@ -43,6 +47,7 @@ class AuthStore {
           this.isAuthenticated = false
           this.token = null
           this.loading = false
+          this.userLoaded = false
         })
         authService.clearToken()
       }
@@ -50,6 +55,7 @@ class AuthStore {
       runInAction(() => {
         this.isAuthenticated = false
         this.loading = false
+        this.userLoaded = false
       })
     }
   }
@@ -67,12 +73,14 @@ class AuthStore {
         this.token = token
         this.isAuthenticated = true
         this.loading = false
+        this.userLoaded = true
       })
     } catch (error) {
       runInAction(() => {
         this.error = error.message || 'Ошибка авторизации'
         this.loading = false
         this.isAuthenticated = false
+        this.userLoaded = false
       })
       throw error
     }
@@ -94,6 +102,8 @@ class AuthStore {
         this.isAuthenticated = false
         this.loading = false
         this.error = null
+        this.userLoaded = false
+        this._fetchUserPromise = null
       })
       authService.clearToken()
     }
@@ -103,21 +113,41 @@ class AuthStore {
    * Загрузить данные текущего пользователя
    */
   async fetchCurrentUser() {
-    this.loading = true
-    this.error = null
-    try {
-      const user = await authService.getCurrentUser()
-      runInAction(() => {
-        this.user = user
-        this.loading = false
-      })
-    } catch (error) {
-      runInAction(() => {
-        this.error = error.message || 'Ошибка загрузки данных пользователя'
-        this.loading = false
-      })
-      throw error
+    // Если пользователь уже загружен, не делаем повторный запрос
+    if (this.userLoaded && this.user) {
+      return
     }
+    
+    // Если уже идет загрузка, возвращаем существующий Promise
+    if (this._fetchUserPromise) {
+      return this._fetchUserPromise
+    }
+    
+    // Создаем новый Promise для загрузки
+    this._fetchUserPromise = (async () => {
+      this.loading = true
+      this.error = null
+      try {
+        const user = await authService.getCurrentUser()
+        runInAction(() => {
+          this.user = user
+          this.loading = false
+          this.userLoaded = true
+          this._fetchUserPromise = null
+        })
+        return user
+      } catch (error) {
+        runInAction(() => {
+          this.error = error.message || 'Ошибка загрузки данных пользователя'
+          this.loading = false
+          this.userLoaded = false
+          this._fetchUserPromise = null
+        })
+        throw error
+      }
+    })()
+    
+    return this._fetchUserPromise
   }
 
   /**

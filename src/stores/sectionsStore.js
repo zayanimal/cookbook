@@ -6,9 +6,14 @@ import { pagesService } from '../services/pagesService'
  * Store для управления разделами
  */
 class SectionsStore {
+
   sections = []
+
   loading = false
+
   error = null
+
+  loaded = false
 
   constructor() {
     makeAutoObservable(this)
@@ -18,6 +23,11 @@ class SectionsStore {
    * Загрузить все разделы с сервера
    */
   async loadSections() {
+    // Предотвращаем повторную загрузку, если уже загружается или уже загружено
+    if (this.loading || this.loaded) {
+      return
+    }
+    
     this.loading = true
     this.error = null
     try {
@@ -25,6 +35,7 @@ class SectionsStore {
       runInAction(() => {
         this.sections = sections
         this.loading = false
+        this.loaded = true
       })
     } catch (error) {
       runInAction(() => {

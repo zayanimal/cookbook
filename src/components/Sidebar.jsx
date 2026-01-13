@@ -55,7 +55,7 @@ const SectionItem = observer(({ section, onClose }) => {
     if (!e.target.closest('.MuiIconButton-root')) {
       cookbookStore.selectSection(section.id)
       setExpanded(!expanded)
-      if (onClose) onClose()
+      // Не закрываем сайдбар при клике на секцию, только при выборе страницы
     }
   }
 

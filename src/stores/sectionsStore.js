@@ -15,6 +15,9 @@ class SectionsStore {
 
   loaded = false
 
+  // Отслеживание загрузки страниц для каждой секции
+  pagesLoading = {}
+
   constructor() {
     makeAutoObservable(this)
   }
@@ -33,7 +36,11 @@ class SectionsStore {
     try {
       const sections = await sectionsService.getAllSections()
       runInAction(() => {
-        this.sections = sections
+        // Удаляем pages из каждой секции, чтобы они загружались отдельно
+        this.sections = sections.map(section => ({
+          ...section,
+          pages: undefined // Не загружаем pages сразу
+        }))
         this.loading = false
         this.loaded = true
       })
@@ -53,17 +60,40 @@ class SectionsStore {
     const section = this.sections.find((s) => s.id === sectionId)
     if (!section) return
 
+    // Если страницы уже загружены, не загружаем снова
+    if (section.pages !== undefined) {
+      return
+    }
+
+    // Если уже идет загрузка страниц для этой секции, не запускаем повторную загрузку
+    if (this.pagesLoading[sectionId]) {
+      return
+    }
+
+    runInAction(() => {
+      this.pagesLoading[sectionId] = true
+    })
+
     try {
       const pages = await pagesService.getPagesBySection(sectionId)
       runInAction(() => {
         section.pages = pages
+        this.pagesLoading[sectionId] = false
       })
     } catch (error) {
       console.error('Error loading pages:', error)
       runInAction(() => {
         this.error = error.message || 'Ошибка загрузки страниц'
+        this.pagesLoading[sectionId] = false
       })
     }
+  }
+
+  /**
+   * Проверить, загружаются ли страницы для секции
+   */
+  isPagesLoading(sectionId) {
+    return this.pagesLoading[sectionId] || false
   }
 
   /**
@@ -74,7 +104,12 @@ class SectionsStore {
     try {
       const newSection = await sectionsService.createSection(title)
       runInAction(() => {
-        this.sections.push(newSection)
+        // Убеждаемся, что pages не загружены сразу для нового раздела
+        const section = {
+          ...newSection,
+          pages: undefined
+        }
+        this.sections.push(section)
       })
       return newSection.id
     } catch (error) {

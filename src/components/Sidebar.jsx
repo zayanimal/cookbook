@@ -19,6 +19,7 @@ import {
   MenuItem,
   Box,
   Typography,
+  CircularProgress,
 } from '@mui/material'
 import {
   ExpandLess,
@@ -153,27 +154,35 @@ const SectionItem = observer(({ section, onClose }) => {
 
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <List component="div" disablePadding>
-          {section.pages.map((page) => {
-            const isPageSelected =
-              cookbookStore.selectedPageId === page.id &&
-              cookbookStore.selectedSectionId === section.id
-            return (
-              <ListItem
-                key={page.id}
-                disablePadding
-                selected={isPageSelected}
-                onClick={() => handlePageClick(page.id)}
-              >
-                <ListItemButton sx={{ pl: 6 }}>
-                  <ListItemIcon sx={{ minWidth: 36 }}>
-                    <Description fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText primary={page.title} />
-                </ListItemButton>
-              </ListItem>
-            )
-          })}
-          {authStore.canAdd && (
+          {cookbookStore.isPagesLoading(section.id) || section.pages === undefined ? (
+            <ListItem disablePadding>
+              <Box sx={{ pl: 6, py: 2, width: '100%', display: 'flex', justifyContent: 'center' }}>
+                <CircularProgress size={24} />
+              </Box>
+            </ListItem>
+          ) : section.pages && section.pages.length > 0 ? (
+            section.pages.map((page) => {
+              const isPageSelected =
+                cookbookStore.selectedPageId === page.id &&
+                cookbookStore.selectedSectionId === section.id
+              return (
+                <ListItem
+                  key={page.id}
+                  disablePadding
+                  selected={isPageSelected}
+                  onClick={() => handlePageClick(page.id)}
+                >
+                  <ListItemButton sx={{ pl: 6 }}>
+                    <ListItemIcon sx={{ minWidth: 36 }}>
+                      <Description fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary={page.title} />
+                  </ListItemButton>
+                </ListItem>
+              )
+            })
+          ) : null}
+          {!cookbookStore.isPagesLoading(section.id) && section.pages !== undefined && authStore.canAdd && (
             <ListItem disablePadding>
               <ListItemButton
                 sx={{ pl: 6 }}

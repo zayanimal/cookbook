@@ -75,7 +75,7 @@ class CookbookStore {
     this.uiStore.selectSection(sectionId)
     // Загружаем страницы раздела, если они еще не загружены
     const section = this.sectionsStore.getSectionById(sectionId)
-    if (section && (!section.pages || section.pages.length === 0)) {
+    if (section && section.pages === undefined) {
       this.loadSectionPages(sectionId)
     }
   }
@@ -215,6 +215,13 @@ class CookbookStore {
 
   get error() {
     return this.uiStore.error || this.sectionsStore.error || this.pagesStore.error
+  }
+
+  /**
+   * Проверить, загружаются ли страницы для секции
+   */
+  isPagesLoading(sectionId) {
+    return this.sectionsStore.isPagesLoading(sectionId)
   }
 }
 

@@ -26,9 +26,10 @@ class AuthService {
       // Сохраняем токен в cookies
       if (token) {
         // Устанавливаем cookie на 7 дней
+        // secure: только если страница загружена по HTTPS (иначе браузер не сохранит cookie по HTTP)
         Cookies.set(TOKEN_COOKIE_NAME, token, {
           expires: 7,
-          secure: process.env.NODE_ENV === 'production',
+          secure: window.location.protocol === 'https:',
           sameSite: 'strict',
         })
       }

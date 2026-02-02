@@ -1,9 +1,10 @@
 import { makeAutoObservable, runInAction } from 'mobx'
 import { sectionsService } from '../services/sectionsService'
+import { subsectionsService } from '../services/subsectionsService'
 import { pagesService } from '../services/pagesService'
 
 /**
- * Store для управления разделами
+ * Store для управления разделами и подразделами
  */
 class SectionsStore {
 
@@ -23,11 +24,10 @@ class SectionsStore {
    * Загрузить все разделы с сервера
    */
   async loadSections() {
-    // Предотвращаем повторную загрузку, если уже загружается или уже загружено
     if (this.loading || this.loaded) {
       return
     }
-    
+
     this.loading = true
     this.error = null
     try {
@@ -47,22 +47,109 @@ class SectionsStore {
   }
 
   /**
-   * Загрузить страницы для раздела
+   * Загрузить подразделы для раздела
    */
-  async loadSectionPages(sectionId) {
+  async loadSectionSubsections(sectionId) {
     const section = this.sections.find((s) => s.id === sectionId)
     if (!section) return
 
     try {
-      const pages = await pagesService.getPagesBySection(sectionId)
+      const subsections = await subsectionsService.getSubsectionsBySection(sectionId)
       runInAction(() => {
-        section.pages = pages
+        section.subsections = subsections
+      })
+    } catch (error) {
+      console.error('Error loading subsections:', error)
+      runInAction(() => {
+        this.error = error.message || 'Ошибка загрузки подразделов'
+      })
+    }
+  }
+
+  /**
+   * Загрузить страницы для подраздела
+   */
+  async loadSubsectionPages(sectionId, subsectionId) {
+    const section = this.sections.find((s) => s.id === sectionId)
+    const subsection = section?.subsections?.find((ss) => ss.id === subsectionId)
+    if (!subsection) return
+
+    try {
+      const pages = await pagesService.getPagesBySubsection(subsectionId)
+      runInAction(() => {
+        subsection.pages = pages
       })
     } catch (error) {
       console.error('Error loading pages:', error)
       runInAction(() => {
         this.error = error.message || 'Ошибка загрузки страниц'
       })
+    }
+  }
+
+  /**
+   * Создать новый подраздел в разделе
+   */
+  async addSubsection(sectionId, title) {
+    this.error = null
+    try {
+      const newSubsection = await subsectionsService.createSubsection(sectionId, title)
+      runInAction(() => {
+        const section = this.sections.find((s) => s.id === sectionId)
+        if (section) {
+          if (!section.subsections) section.subsections = []
+          section.subsections.push(newSubsection)
+        }
+      })
+      return newSubsection.id
+    } catch (error) {
+      runInAction(() => {
+        this.error = error.message || 'Ошибка создания подраздела'
+      })
+      throw error
+    }
+  }
+
+  /**
+   * Обновить подраздел
+   */
+  async updateSubsection(sectionId, subsectionId, title) {
+    this.error = null
+    try {
+      const updated = await subsectionsService.updateSubsection(subsectionId, title)
+      runInAction(() => {
+        const section = this.sections.find((s) => s.id === sectionId)
+        const subsection = section?.subsections?.find((ss) => ss.id === subsectionId)
+        if (subsection) subsection.title = updated.title
+      })
+    } catch (error) {
+      runInAction(() => {
+        this.error = error.message || 'Ошибка обновления подраздела'
+      })
+      throw error
+    }
+  }
+
+  /**
+   * Удалить подраздел
+   */
+  async deleteSubsection(sectionId, subsectionId) {
+    this.error = null
+    try {
+      await subsectionsService.deleteSubsection(subsectionId)
+      runInAction(() => {
+        const section = this.sections.find((s) => s.id === sectionId)
+        if (section?.subsections) {
+          section.subsections = section.subsections.filter(
+            (ss) => ss.id !== subsectionId
+          )
+        }
+      })
+    } catch (error) {
+      runInAction(() => {
+        this.error = error.message || 'Ошибка удаления подраздела'
+      })
+      throw error
     }
   }
 
@@ -129,6 +216,14 @@ class SectionsStore {
    */
   getSectionById(sectionId) {
     return this.sections.find((s) => s.id === sectionId)
+  }
+
+  /**
+   * Получить подраздел по ID
+   */
+  getSubsectionById(sectionId, subsectionId) {
+    const section = this.sections.find((s) => s.id === sectionId)
+    return section?.subsections?.find((ss) => ss.id === subsectionId)
   }
 
   /**

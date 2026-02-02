@@ -69,6 +69,7 @@ const PageView = observer(() => {
 
   const page = cookbookStore.getSelectedPage()
   const section = cookbookStore.getSelectedSection()
+  const subsection = cookbookStore.getSelectedSubsection()
 
   // Инициализируем editedTitle при изменении страницы
   useEffect(() => {
@@ -217,7 +218,7 @@ const PageView = observer(() => {
     if (editorInstanceRef.current) {
       try {
         const outputData = await editorInstanceRef.current.save()
-        await cookbookStore.updatePage(section.id, page.id, {
+        await cookbookStore.updatePage(section.id, subsection.id, page.id, {
           content: outputData,
         })
         setIsEditMode(false)
@@ -240,7 +241,7 @@ const PageView = observer(() => {
   const handleSaveTitle = async () => {
     if (editedTitle.trim() && editedTitle.trim() !== page.title) {
       try {
-        await cookbookStore.updatePage(section.id, page.id, {
+        await cookbookStore.updatePage(section.id, subsection.id, page.id, {
           title: editedTitle.trim(),
         })
         setIsEditingTitle(false)
@@ -266,7 +267,7 @@ const PageView = observer(() => {
 
   const handleConfirmDelete = async () => {
     try {
-      await cookbookStore.deletePage(section.id, page.id)
+      await cookbookStore.deletePage(section.id, subsection.id, page.id)
       setDeleteDialogOpen(false)
     } catch (error) {
       alert('Ошибка удаления страницы: ' + (error.message || 'Неизвестная ошибка'))
@@ -274,7 +275,7 @@ const PageView = observer(() => {
     }
   }
 
-  if (!page || !section) {
+  if (!page || !section || !subsection) {
     return null
   }
 

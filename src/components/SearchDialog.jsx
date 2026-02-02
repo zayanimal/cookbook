@@ -53,7 +53,7 @@ const SearchDialog = observer(({ open, onClose }) => {
       .replace(/<[^>]*>/g, '') // Удаляем HTML теги
   }
 
-  // Поиск по всем страницам
+  // Поиск по всем разделам, подразделам и страницам
   const performSearch = useMemo(() => {
     return (query) => {
       if (!query || query.trim().length < 2) {
@@ -63,17 +63,17 @@ const SearchDialog = observer(({ open, onClose }) => {
       const lowerQuery = query.toLowerCase().trim()
       const results = []
 
-      // Проходим по всем разделам и страницам
       cookbookStore.sections.forEach((section) => {
-        // Поиск в названии раздела
         const sectionTitleMatch = section.title?.toLowerCase().includes(lowerQuery)
+        const subsections = section.subsections || []
 
-        if (!section.pages || section.pages.length === 0) {
-          // Если раздел без страниц, но название совпадает, добавляем раздел
+        if (subsections.length === 0) {
           if (sectionTitleMatch) {
             results.push({
               sectionId: section.id,
+              subsectionId: null,
               sectionTitle: section.title,
+              subsectionTitle: null,
               pageId: null,
               pageTitle: null,
               snippet: section.title,
@@ -83,47 +83,71 @@ const SearchDialog = observer(({ open, onClose }) => {
           return
         }
 
-        section.pages.forEach((page) => {
-          // Поиск в названии страницы
-          const pageTitleMatch = page.title?.toLowerCase().includes(lowerQuery)
-          
-          // Поиск в содержимом страницы
-          const contentText = extractTextFromBlocks(page.content?.blocks)
-          const contentMatch = contentText.toLowerCase().includes(lowerQuery)
+        subsections.forEach((subsection) => {
+          const subsectionTitleMatch = subsection.title?.toLowerCase().includes(lowerQuery)
+          const pages = subsection.pages || []
 
-          if (pageTitleMatch || contentMatch || sectionTitleMatch) {
-            // Находим позицию совпадения в тексте
-            const contentIndex = contentText.toLowerCase().indexOf(lowerQuery)
-
-            // Формируем сниппет (фрагмент текста с совпадением)
-            let snippet = ''
-            if (pageTitleMatch) {
-              snippet = page.title
-            } else if (contentMatch) {
-              const start = Math.max(0, contentIndex - 50)
-              const end = Math.min(contentText.length, contentIndex + lowerQuery.length + 50)
-              snippet = '...' + contentText.substring(start, end) + '...'
-            } else if (sectionTitleMatch) {
-              snippet = section.title
+          if (pages.length === 0) {
+            if (subsectionTitleMatch || sectionTitleMatch) {
+              results.push({
+                sectionId: section.id,
+                subsectionId: subsection.id,
+                sectionTitle: section.title,
+                subsectionTitle: subsection.title,
+                pageId: null,
+                pageTitle: null,
+                snippet: subsection.title || section.title,
+                matchType: subsectionTitleMatch ? 'subsection' : 'section',
+              })
             }
-
-            results.push({
-              sectionId: section.id,
-              sectionTitle: section.title,
-              pageId: page.id,
-              pageTitle: page.title,
-              snippet,
-              matchType: pageTitleMatch ? 'title' : contentMatch ? 'content' : 'section',
-            })
+            return
           }
+
+          pages.forEach((page) => {
+            const pageTitleMatch = page.title?.toLowerCase().includes(lowerQuery)
+            const contentText = extractTextFromBlocks(page.content?.blocks)
+            const contentMatch = contentText.toLowerCase().includes(lowerQuery)
+
+            if (pageTitleMatch || contentMatch || subsectionTitleMatch || sectionTitleMatch) {
+              const contentIndex = contentText.toLowerCase().indexOf(lowerQuery)
+              let snippet = ''
+              if (pageTitleMatch) {
+                snippet = page.title
+              } else if (contentMatch) {
+                const start = Math.max(0, contentIndex - 50)
+                const end = Math.min(contentText.length, contentIndex + lowerQuery.length + 50)
+                snippet = '...' + contentText.substring(start, end) + '...'
+              } else if (subsectionTitleMatch) {
+                snippet = subsection.title
+              } else {
+                snippet = section.title
+              }
+
+              const matchType = pageTitleMatch
+                ? 'title'
+                : contentMatch
+                  ? 'content'
+                  : subsectionTitleMatch
+                    ? 'subsection'
+                    : 'section'
+
+              results.push({
+                sectionId: section.id,
+                subsectionId: subsection.id,
+                sectionTitle: section.title,
+                subsectionTitle: subsection.title,
+                pageId: page.id,
+                pageTitle: page.title,
+                snippet,
+                matchType,
+              })
+            }
+          })
         })
       })
 
-      // Сортируем результаты: сначала совпадения в названии страницы, потом в содержимом, потом в разделе
-      return results.sort((a, b) => {
-        const priority = { title: 1, content: 2, section: 3 }
-        return (priority[a.matchType] || 3) - (priority[b.matchType] || 3)
-      })
+      const priority = { title: 1, content: 2, subsection: 3, section: 4 }
+      return results.sort((a, b) => (priority[a.matchType] || 4) - (priority[b.matchType] || 4))
     }
   }, [cookbookStore.sections])
 
@@ -137,23 +161,31 @@ const SearchDialog = observer(({ open, onClose }) => {
     }
   }, [searchQuery, performSearch])
 
-  // Загружаем страницы для всех разделов при открытии диалога
+  // Загружаем подразделы и страницы при открытии диалога
   useEffect(() => {
     if (open) {
-      // Загружаем страницы для разделов, у которых они еще не загружены
-      const loadPages = async () => {
+      const loadData = async () => {
         for (const section of cookbookStore.sections) {
-          if (!section.pages || section.pages.length === 0) {
-            await cookbookStore.loadSectionPages(section.id)
+          if (!section.subsections || section.subsections.length === 0) {
+            await cookbookStore.loadSectionSubsections(section.id)
+          }
+          const subsections = section.subsections || []
+          for (const subsection of subsections) {
+            if (!subsection.pages || subsection.pages.length === 0) {
+              await cookbookStore.loadSubsectionPages(section.id, subsection.id)
+            }
           }
         }
       }
-      loadPages()
+      loadData()
     }
   }, [open, cookbookStore])
 
-  const handleResultClick = (sectionId, pageId) => {
+  const handleResultClick = (sectionId, subsectionId, pageId) => {
     cookbookStore.selectSection(sectionId)
+    if (subsectionId) {
+      cookbookStore.selectSubsection(sectionId, subsectionId)
+    }
     if (pageId) {
       cookbookStore.selectPage(pageId)
     }
@@ -205,43 +237,74 @@ const SearchDialog = observer(({ open, onClose }) => {
         ) : (
           <List>
             {searchResults.map((result, index) => (
-              <React.Fragment key={`${result.sectionId}-${result.pageId}`}>
+              <React.Fragment
+                key={`${result.sectionId}-${result.subsectionId || ''}-${result.pageId || ''}`}
+              >
                 {index > 0 && <Divider component="li" />}
                 <ListItem disablePadding>
-                  <ListItemButton onClick={() => handleResultClick(result.sectionId, result.pageId)}>
+                  <ListItemButton
+                    onClick={() =>
+                      handleResultClick(
+                        result.sectionId,
+                        result.subsectionId,
+                        result.pageId
+                      )
+                    }
+                  >
                     <Box sx={{ display: 'flex', alignItems: 'flex-start', width: '100%', gap: 2 }}>
                       <Box sx={{ mt: 0.5 }}>
-                        {result.matchType === 'section' ? (
+                        {result.matchType === 'section' ||
+                        result.matchType === 'subsection' ? (
                           <FolderIcon color="primary" />
                         ) : (
-                          <DescriptionIcon color={result.matchType === 'title' ? 'primary' : 'action'} />
+                          <DescriptionIcon
+                            color={
+                              result.matchType === 'title' ? 'primary' : 'action'
+                            }
+                          />
                         )}
                       </Box>
                       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                         <Typography
                           variant="subtitle1"
                           sx={{
-                            fontWeight: result.matchType === 'title' || result.matchType === 'section' ? 600 : 400,
+                            fontWeight:
+                              result.matchType === 'title' ||
+                              result.matchType === 'section' ||
+                              result.matchType === 'subsection'
+                                ? 600
+                                : 400,
                             mb: 0.5,
                           }}
                         >
-                          {result.pageTitle || result.sectionTitle}
+                          {result.pageTitle ||
+                            result.subsectionTitle ||
+                            result.sectionTitle}
                         </Typography>
-                        {result.pageTitle && (
-                          <Typography variant="caption" color="text.secondary" display="block">
-                            {result.sectionTitle}
-                          </Typography>
-                        )}
-                        {result.snippet && result.matchType !== 'title' && result.matchType !== 'section' && (
+                        {(result.pageTitle || result.subsectionTitle) && (
                           <Typography
-                            variant="body2"
+                            variant="caption"
                             color="text.secondary"
-                            sx={{ mt: 1 }}
-                            noWrap
+                            display="block"
                           >
-                            {result.snippet}
+                            {result.subsectionTitle
+                              ? `${result.sectionTitle} → ${result.subsectionTitle}`
+                              : result.sectionTitle}
                           </Typography>
                         )}
+                        {result.snippet &&
+                          result.matchType !== 'title' &&
+                          result.matchType !== 'section' &&
+                          result.matchType !== 'subsection' && (
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ mt: 1 }}
+                              noWrap
+                            >
+                              {result.snippet}
+                            </Typography>
+                          )}
                       </Box>
                     </Box>
                   </ListItemButton>

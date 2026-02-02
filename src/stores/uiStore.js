@@ -5,6 +5,7 @@ import { makeAutoObservable } from 'mobx'
  */
 class UIStore {
   selectedSectionId = null
+  selectedSubsectionId = null
   selectedPageId = null
   sidebarOpen = true
   error = null
@@ -59,6 +60,15 @@ class UIStore {
    */
   selectSection(sectionId) {
     this.selectedSectionId = sectionId
+    this.selectedSubsectionId = null
+    this.selectedPageId = null
+  }
+
+  /**
+   * Выбрать подраздел
+   */
+  selectSubsection(subsectionId) {
+    this.selectedSubsectionId = subsectionId
     this.selectedPageId = null
   }
 
@@ -74,6 +84,7 @@ class UIStore {
    */
   clearSelection() {
     this.selectedSectionId = null
+    this.selectedSubsectionId = null
     this.selectedPageId = null
   }
 

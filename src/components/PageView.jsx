@@ -403,7 +403,7 @@ const PageView = observer(() => {
   }
 
   return (
-    <Paper sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, mx: 'auto' }}>
+    <Paper sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, width: '100%', boxSizing: 'border-box', mx: 'auto' }}>
       {/* Заголовок страницы с возможностью редактирования */}
       <Box sx={{ mb: 3 }}>
         {isEditingTitle && authStore.canEdit ? (
@@ -453,6 +453,7 @@ const PageView = observer(() => {
               display: 'flex',
               alignItems: 'center',
               gap: 1,
+              minWidth: 0, // чтобы контент мог сжиматься и не выталкивал иконки
               cursor: authStore.canEdit ? 'pointer' : 'default',
               '&:hover': authStore.canEdit
                 ? {
@@ -470,7 +471,9 @@ const PageView = observer(() => {
               sx={{
                 fontWeight: 500,
                 flexGrow: 1,
+                minWidth: 0,
                 wordBreak: 'break-word',
+                overflowWrap: 'break-word',
               }}
             >
               {page.title}
@@ -568,7 +571,16 @@ const PageView = observer(() => {
             />
           </EditorContainer>
         ) : (
-          <Box>{renderContent()}</Box>
+          <Box
+            sx={{
+              minWidth: 0,
+              overflowWrap: 'break-word',
+              wordBreak: 'break-word',
+              '& *': { maxWidth: '100%' },
+            }}
+          >
+            {renderContent()}
+          </Box>
         )}
       </Box>
 

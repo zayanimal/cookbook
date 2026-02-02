@@ -37,9 +37,10 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 
 const MainContent = styled(Box)(({ theme }) => ({
   flexGrow: 1,
+  minHeight: 0, // нужно для flex, чтобы контент мог скроллиться при переполнении
+  overflowY: 'auto',
   padding: theme.spacing(3),
   backgroundColor: theme.palette.background.default,
-  minHeight: '100vh',
   [theme.breakpoints.down('md')]: {
     padding: theme.spacing(2),
   },

@@ -494,22 +494,14 @@ const PageView = observer(() => {
         )}
       </Box>
 
-      <Box
-        sx={{
-          mt: 0,
-          pt: 0,
-          position: 'relative',
-        }}
-      >
+      <Box>
         {authStore.canEdit && (
           <Box
             sx={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
               display: 'flex',
+              justifyContent: 'flex-end',
               gap: 1,
-              zIndex: 10,
+              mb: 1,
             }}
           >
             {isEditMode ? (

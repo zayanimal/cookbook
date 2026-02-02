@@ -116,9 +116,10 @@ const MainLayout = observer(() => {
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
           backgroundColor: theme.palette.primary.main,
+          color: 'white',
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ color: 'inherit' }}>
           <IconButton
             color="inherit"
             aria-label="toggle drawer"

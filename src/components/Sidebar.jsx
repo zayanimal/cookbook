@@ -146,7 +146,7 @@ const SubsectionItem = observer(({ section, subsection, onClose }) => {
       >
         <ListItemButton
           onClick={handleClick}
-          sx={{ pl: 6, py: 0.5, width: '100%', cursor: 'pointer' }}
+          sx={{ pl: 3.5, py: 0.5, width: '100%', cursor: 'pointer' }}
         >
           <ListItemIcon sx={{ minWidth: 36 }}>
             {expanded ? <ExpandLess /> : <ExpandMore />}
@@ -172,22 +172,22 @@ const SubsectionItem = observer(({ section, subsection, onClose }) => {
                 selected={isPageSelected}
                 onClick={() => handlePageClick(page.id)}
               >
-                <ListItemButton sx={{ pl: 8, py: 0.5 }}>
+                <ListItemButton sx={{ pl: 7, py: 0.5 }}>
                   <ListItemIcon sx={{ minWidth: 36 }}>
                     <Description fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText primary={page.title} />
+                  <ListItemText primary={page.title} primaryTypographyProps={{ fontSize: '0.875rem' }} />
                 </ListItemButton>
               </ListItem>
             )
           })}
           {authStore.canAdd && (
             <ListItem disablePadding>
-              <ListItemButton sx={{ pl: 8, py: 0.5 }} onClick={handleAddPage}>
+              <ListItemButton sx={{ pl: 7, py: 0.5 }} onClick={handleAddPage}>
                 <ListItemIcon sx={{ minWidth: 36 }}>
                   <Add fontSize="small" />
                 </ListItemIcon>
-                <ListItemText primary="Добавить страницу" />
+                <ListItemText primary="Добавить страницу" primaryTypographyProps={{ fontSize: '0.875rem' }} />
               </ListItemButton>
             </ListItem>
           )}
@@ -386,7 +386,7 @@ const SectionItem = observer(({ section, onClose }) => {
       >
         <ListItemButton
           onClick={handleClick}
-          sx={{ pl: 2, py: 0.5, width: '100%', cursor: 'pointer' }}
+          sx={{ pl: 1.5, py: 0.5, width: '100%', cursor: 'pointer' }}
         >
           <ListItemIcon sx={{ minWidth: 36 }}>
             {expanded ? <ExpandLess /> : <ExpandMore />}
@@ -407,7 +407,7 @@ const SectionItem = observer(({ section, onClose }) => {
           ))}
           {authStore.canAdd && (
             <ListItem disablePadding>
-              <ListItemButton sx={{ pl: 6, py: 0.5 }} onClick={handleAddSubsection}>
+              <ListItemButton sx={{ pl: 3.5, py: 0.5 }} onClick={handleAddSubsection}>
                 <ListItemIcon sx={{ minWidth: 36 }}>
                   <Add fontSize="small" />
                 </ListItemIcon>

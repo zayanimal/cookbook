@@ -146,7 +146,7 @@ const SubsectionItem = observer(({ section, subsection, onClose }) => {
       >
         <ListItemButton
           onClick={handleClick}
-          sx={{ pl: 6, width: '100%', cursor: 'pointer' }}
+          sx={{ pl: 6, py: 0.5, width: '100%', cursor: 'pointer' }}
         >
           <ListItemIcon sx={{ minWidth: 36 }}>
             {expanded ? <ExpandLess /> : <ExpandMore />}
@@ -172,7 +172,7 @@ const SubsectionItem = observer(({ section, subsection, onClose }) => {
                 selected={isPageSelected}
                 onClick={() => handlePageClick(page.id)}
               >
-                <ListItemButton sx={{ pl: 8 }}>
+                <ListItemButton sx={{ pl: 8, py: 0.5 }}>
                   <ListItemIcon sx={{ minWidth: 36 }}>
                     <Description fontSize="small" />
                   </ListItemIcon>
@@ -183,7 +183,7 @@ const SubsectionItem = observer(({ section, subsection, onClose }) => {
           })}
           {authStore.canAdd && (
             <ListItem disablePadding>
-              <ListItemButton sx={{ pl: 8 }} onClick={handleAddPage}>
+              <ListItemButton sx={{ pl: 8, py: 0.5 }} onClick={handleAddPage}>
                 <ListItemIcon sx={{ minWidth: 36 }}>
                   <Add fontSize="small" />
                 </ListItemIcon>
@@ -386,7 +386,7 @@ const SectionItem = observer(({ section, onClose }) => {
       >
         <ListItemButton
           onClick={handleClick}
-          sx={{ pl: 2, width: '100%', cursor: 'pointer' }}
+          sx={{ pl: 2, py: 0.5, width: '100%', cursor: 'pointer' }}
         >
           <ListItemIcon sx={{ minWidth: 36 }}>
             {expanded ? <ExpandLess /> : <ExpandMore />}
@@ -407,7 +407,7 @@ const SectionItem = observer(({ section, onClose }) => {
           ))}
           {authStore.canAdd && (
             <ListItem disablePadding>
-              <ListItemButton sx={{ pl: 6 }} onClick={handleAddSubsection}>
+              <ListItemButton sx={{ pl: 6, py: 0.5 }} onClick={handleAddSubsection}>
                 <ListItemIcon sx={{ minWidth: 36 }}>
                   <Add fontSize="small" />
                 </ListItemIcon>

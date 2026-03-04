@@ -4,7 +4,8 @@ info:
   description: |
     REST API для системы документации Cookbook.
     
-    API предоставляет функциональность для управления разделами и страницами документации.
+    API предоставляет функциональность для управления разделами, подразделами и страницами документации.
+    Иерархия: Раздел → Подраздел → Страница.
     Все операции требуют авторизации через JWT токен, кроме эндпоинта `/auth/login`.
     
     Роли пользователей:
@@ -26,8 +27,10 @@ tags:
     description: Операции авторизации и аутентификации
   - name: Sections
     description: Управление разделами документации
+  - name: Subsections
+    description: Управление подразделами внутри раздела
   - name: Pages
-    description: Управление страницами документации
+    description: Управление страницами документации (внутри подраздела)
 
 paths:
   /auth/login:
@@ -321,7 +324,7 @@ paths:
       tags:
         - Sections
       summary: Удалить раздел
-      description: Удаляет раздел и все его страницы. Требует роль администратора.
+      description: Удаляет раздел, все его подразделы и страницы. Требует роль администратора.
       operationId: deleteSection
       security:
         - bearerAuth: []
@@ -359,13 +362,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /sections/{sectionId}/pages:
+  /sections/{sectionId}/subsections:
     get:
       tags:
-        - Pages
-      summary: Получить все страницы раздела
-      description: Возвращает список всех страниц в указанном разделе
-      operationId: getPagesBySection
+        - Subsections
+      summary: Получить все подразделы раздела
+      description: Возвращает список всех подразделов в указанном разделе
+      operationId: getSubsectionsBySection
       security:
         - bearerAuth: []
       parameters:
@@ -376,6 +379,260 @@ paths:
           schema:
             type: string
           example: "1"
+      responses:
+        '200':
+          description: Список подразделов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Subsection'
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Раздел не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Subsections
+      summary: Создать новый подраздел
+      description: Создает новый подраздел в указанном разделе. Требует роль администратора.
+      operationId: createSubsection
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sectionId
+          in: path
+          required: true
+          description: ID раздела
+          schema:
+            type: string
+          example: "1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubsectionRequest'
+            example:
+              title: Новый подраздел
+      responses:
+        '200':
+          description: Подраздел успешно создан
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Subsection'
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Неверный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Доступ запрещен (недостаточно прав)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Раздел не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subsections/{subsectionId}:
+    get:
+      tags:
+        - Subsections
+      summary: Получить подраздел по ID
+      description: Возвращает информацию о конкретном подразделе
+      operationId: getSubsectionById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: subsectionId
+          in: path
+          required: true
+          description: ID подраздела
+          schema:
+            type: string
+          example: "1-1"
+      responses:
+        '200':
+          description: Данные подраздела
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Subsection'
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Подраздел не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Subsections
+      summary: Обновить подраздел
+      description: Обновляет название подраздела. Требует роль администратора.
+      operationId: updateSubsection
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: subsectionId
+          in: path
+          required: true
+          description: ID подраздела
+          schema:
+            type: string
+          example: "1-1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSubsectionRequest'
+            example:
+              title: Обновленное название подраздела
+      responses:
+        '200':
+          description: Подраздел успешно обновлен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Subsection'
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Неверный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Доступ запрещен (недостаточно прав)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Подраздел не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Subsections
+      summary: Удалить подраздел
+      description: Удаляет подраздел и все его страницы. Требует роль администратора.
+      operationId: deleteSubsection
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: subsectionId
+          in: path
+          required: true
+          description: ID подраздела
+          schema:
+            type: string
+          example: "1-1"
+      responses:
+        '200':
+          description: Подраздел успешно удален
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Доступ запрещен (недостаточно прав)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Подраздел не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subsections/{subsectionId}/pages:
+    get:
+      tags:
+        - Pages
+      summary: Получить все страницы подраздела
+      description: Возвращает список всех страниц в указанном подразделе
+      operationId: getPagesBySubsection
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: subsectionId
+          in: path
+          required: true
+          description: ID подраздела
+          schema:
+            type: string
+          example: "1-1"
       responses:
         '200':
           description: Список страниц
@@ -398,7 +655,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Раздел не найден
+          description: Подраздел не найден
           content:
             application/json:
               schema:
@@ -408,18 +665,18 @@ paths:
       tags:
         - Pages
       summary: Создать новую страницу
-      description: Создает новую страницу в указанном разделе. Требует роль администратора.
+      description: Создает новую страницу в указанном подразделе. Требует роль администратора.
       operationId: createPage
       security:
         - bearerAuth: []
       parameters:
-        - name: sectionId
+        - name: subsectionId
           in: path
           required: true
-          description: ID раздела
+          description: ID подраздела
           schema:
             type: string
-          example: "1"
+          example: "1-1"
       requestBody:
         required: true
         content:
@@ -462,62 +719,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Раздел не найден
+          description: Подраздел не найден
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /sections/{sectionId}/pages/{pageId}:
-    get:
-      tags:
-        - Pages
-      summary: Получить страницу по ID
-      description: Возвращает информацию о конкретной странице
-      operationId: getPageById
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: sectionId
-          in: path
-          required: true
-          description: ID раздела
-          schema:
-            type: string
-          example: "1"
-        - name: pageId
-          in: path
-          required: true
-          description: ID страницы
-          schema:
-            type: string
-          example: "1-1"
-      responses:
-        '200':
-          description: Данные страницы
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    $ref: '#/components/schemas/Page'
-                  success:
-                    type: boolean
-                    example: true
-        '401':
-          description: Не авторизован
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Страница не найдена
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
+  /pages/{pageId}:
     put:
       tags:
         - Pages
@@ -527,20 +735,13 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: sectionId
-          in: path
-          required: true
-          description: ID раздела
-          schema:
-            type: string
-          example: "1"
         - name: pageId
           in: path
           required: true
           description: ID страницы
           schema:
             type: string
-          example: "1-1"
+          example: "1-1-1"
       requestBody:
         required: true
         content:
@@ -601,20 +802,13 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: sectionId
-          in: path
-          required: true
-          description: ID раздела
-          schema:
-            type: string
-          example: "1"
         - name: pageId
           in: path
           required: true
           description: ID страницы
           schema:
             type: string
-          example: "1-1"
+          example: "1-1-1"
       responses:
         '200':
           description: Страница успешно удалена
@@ -722,11 +916,11 @@ components:
           type: string
           description: Название раздела
           example: Отопление
-        pages:
+        subsections:
           type: array
-          description: Список страниц раздела (опционально, может отсутствовать в некоторых ответах)
+          description: Список подразделов раздела (опционально, может отсутствовать в некоторых ответах)
           items:
-            $ref: '#/components/schemas/Page'
+            $ref: '#/components/schemas/Subsection'
 
     CreateSectionRequest:
       type: object
@@ -750,6 +944,48 @@ components:
           minLength: 1
           example: Обновленное название
 
+    Subsection:
+      type: object
+      required:
+        - id
+        - title
+      properties:
+        id:
+          type: string
+          description: Уникальный идентификатор подраздела
+          example: "1-1"
+        title:
+          type: string
+          description: Название подраздела
+          example: Котёл и радиаторы
+        pages:
+          type: array
+          description: Список страниц подраздела (опционально, может отсутствовать в некоторых ответах)
+          items:
+            $ref: '#/components/schemas/Page'
+
+    CreateSubsectionRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          description: Название подраздела
+          minLength: 1
+          example: Новый подраздел
+
+    UpdateSubsectionRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          description: Новое название подраздела
+          minLength: 1
+          example: Обновленное название подраздела
+
     Page:
       type: object
       required:
@@ -762,7 +998,7 @@ components:
         id:
           type: string
           description: Уникальный идентификатор страницы
-          example: "1-1"
+          example: "1-1-1"
         title:
           type: string
           description: Название страницы

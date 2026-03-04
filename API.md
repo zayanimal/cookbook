@@ -111,7 +111,7 @@ Authorization: Bearer <token>
     {
       "id": "1",
       "title": "Отопление",
-      "pages": [...]
+      "subsections": [...]
     }
   ],
   "success": true
@@ -127,7 +127,7 @@ Authorization: Bearer <token>
   "data": {
     "id": "1",
     "title": "Отопление",
-    "pages": [...]
+    "subsections": [...]
   },
   "success": true
 }
@@ -149,7 +149,7 @@ Authorization: Bearer <token>
   "data": {
     "id": "9",
     "title": "Название раздела",
-    "pages": []
+    "subsections": []
   },
   "success": true
 }
@@ -171,14 +171,14 @@ Authorization: Bearer <token>
   "data": {
     "id": "1",
     "title": "Новое название",
-    "pages": [...]
+    "subsections": [...]
   },
   "success": true
 }
 ```
 
 #### DELETE /api/sections/:id
-Удалить раздел
+Удалить раздел (и все подразделы и страницы)
 
 **Ответ:**
 ```json
@@ -187,12 +187,12 @@ Authorization: Bearer <token>
 }
 ```
 
-### Страницы (Pages)
+### Подразделы (Subsections)
 
-> **Примечание:** Все операции со страницами требуют авторизации. Создание, редактирование и удаление доступны только администраторам.
+> **Примечание:** Все операции с подразделами требуют авторизации. Создание, редактирование и удаление доступны только администраторам.
 
-#### GET /api/sections/:id/pages
-Получить все страницы раздела
+#### GET /api/sections/:id/subsections
+Получить все подразделы раздела
 
 **Ответ:**
 ```json
@@ -201,9 +201,47 @@ Authorization: Bearer <token>
     {
       "id": "1-1",
       "title": "Общая информация",
-      "content": {
-        "blocks": [...]
-      },
+      "pages": [...]
+    }
+  ],
+  "success": true
+}
+```
+
+#### GET /api/sections/:id/subsections/:subsectionId
+Получить подраздел по ID
+
+#### POST /api/sections/:id/subsections
+Создать новый подраздел
+
+**Тело запроса:**
+```json
+{
+  "title": "Название подраздела"
+}
+```
+
+#### PUT /api/sections/:id/subsections/:subsectionId
+Обновить подраздел
+
+#### DELETE /api/sections/:id/subsections/:subsectionId
+Удалить подраздел (и все его страницы)
+
+### Страницы (Pages)
+
+> **Примечание:** Страницы принадлежат подразделу. Все операции требуют авторизации.
+
+#### GET /api/sections/:sectionId/subsections/:subsectionId/pages
+Получить все страницы подраздела
+
+**Ответ:**
+```json
+{
+  "data": [
+    {
+      "id": "1-1-1",
+      "title": "Общая информация",
+      "content": { "blocks": [...] },
       "createdAt": "2024-01-15T10:00:00.000Z",
       "updatedAt": "2024-01-15T10:00:00.000Z"
     }
@@ -212,96 +250,40 @@ Authorization: Bearer <token>
 }
 ```
 
-#### GET /api/sections/:id/pages/:pageId
+#### GET /api/sections/:sectionId/subsections/:subsectionId/pages/:pageId
 Получить страницу по ID
 
-**Ответ:**
-```json
-{
-  "data": {
-    "id": "1-1",
-    "title": "Общая информация",
-    "content": {
-      "blocks": [...]
-    },
-    "createdAt": "2024-01-15T10:00:00.000Z",
-    "updatedAt": "2024-01-15T10:00:00.000Z"
-  },
-  "success": true
-}
-```
-
-#### POST /api/sections/:id/pages
-Создать новую страницу
+#### POST /api/sections/:sectionId/subsections/:subsectionId/pages
+Создать новую страницу в подразделе
 
 **Тело запроса:**
 ```json
 {
   "title": "Название страницы",
-  "content": {
-    "blocks": []
-  }
+  "content": { "blocks": [] }
 }
 ```
 
-**Ответ:**
-```json
-{
-  "data": {
-    "id": "1-2",
-    "title": "Название страницы",
-    "content": {
-      "blocks": []
-    },
-    "createdAt": "2024-01-15T10:00:00.000Z",
-    "updatedAt": "2024-01-15T10:00:00.000Z"
-  },
-  "success": true
-}
-```
-
-#### PUT /api/sections/:id/pages/:pageId
+#### PUT /api/sections/:sectionId/subsections/:subsectionId/pages/:pageId
 Обновить страницу
 
-**Тело запроса:**
-```json
-{
-  "title": "Новое название",
-  "content": {
-    "blocks": [...]
-  }
-}
-```
-
-**Ответ:**
-```json
-{
-  "data": {
-    "id": "1-1",
-    "title": "Новое название",
-    "content": {
-      "blocks": [...]
-    },
-    "createdAt": "2024-01-15T10:00:00.000Z",
-    "updatedAt": "2024-01-15T11:00:00.000Z"
-  },
-  "success": true
-}
-```
-
-#### DELETE /api/sections/:id/pages/:pageId
+#### DELETE /api/sections/:sectionId/subsections/:subsectionId/pages/:pageId
 Удалить страницу
-
-**Ответ:**
-```json
-{
-  "success": true
-}
-```
 
 ## Структура данных
 
+Иерархия: **Раздел → Подраздел → Страница**.
+
 ### Раздел (Section)
+```typescript
+{
+  id: string
+  title: string
+  subsections: Subsection[]
+}
+```
+
+### Подраздел (Subsection)
 ```typescript
 {
   id: string

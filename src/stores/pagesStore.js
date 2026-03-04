@@ -13,19 +13,20 @@ class PagesStore {
   }
 
   /**
-   * Создать новую страницу
+   * Создать новую страницу в подразделе
    */
-  async addPage(sectionId, title) {
+  async addPage(sectionId, subsectionId, title) {
     this.error = null
     try {
-      const newPage = await pagesService.createPage(sectionId, title)
+      const newPage = await pagesService.createPage(subsectionId, title)
       runInAction(() => {
-        const section = this.sectionsStore.getSectionById(sectionId)
-        if (section) {
-          if (!section.pages) {
-            section.pages = []
-          }
-          section.pages.push(newPage)
+        const subsection = this.sectionsStore.getSubsectionById(
+          sectionId,
+          subsectionId
+        )
+        if (subsection) {
+          if (!subsection.pages) subsection.pages = []
+          subsection.pages.push(newPage)
         }
       })
       return newPage.id
@@ -40,17 +41,18 @@ class PagesStore {
   /**
    * Обновить страницу
    */
-  async updatePage(sectionId, pageId, updates) {
+  async updatePage(sectionId, subsectionId, pageId, updates) {
     this.error = null
     try {
-      const updatedPage = await pagesService.updatePage(sectionId, pageId, updates)
+      const updatedPage = await pagesService.updatePage(pageId, updates)
       runInAction(() => {
-        const section = this.sectionsStore.getSectionById(sectionId)
-        if (section) {
-          const page = section.pages?.find((p) => p.id === pageId)
-          if (page) {
-            Object.assign(page, updatedPage)
-          }
+        const subsection = this.sectionsStore.getSubsectionById(
+          sectionId,
+          subsectionId
+        )
+        if (subsection?.pages) {
+          const page = subsection.pages.find((p) => p.id === pageId)
+          if (page) Object.assign(page, updatedPage)
         }
       })
     } catch (error) {
@@ -64,14 +66,17 @@ class PagesStore {
   /**
    * Удалить страницу
    */
-  async deletePage(sectionId, pageId) {
+  async deletePage(sectionId, subsectionId, pageId) {
     this.error = null
     try {
-      await pagesService.deletePage(sectionId, pageId)
+      await pagesService.deletePage(pageId)
       runInAction(() => {
-        const section = this.sectionsStore.getSectionById(sectionId)
-        if (section) {
-          section.pages = section.pages?.filter((p) => p.id !== pageId) || []
+        const subsection = this.sectionsStore.getSubsectionById(
+          sectionId,
+          subsectionId
+        )
+        if (subsection?.pages) {
+          subsection.pages = subsection.pages.filter((p) => p.id !== pageId)
         }
       })
     } catch (error) {

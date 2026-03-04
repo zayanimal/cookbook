@@ -1,15 +1,15 @@
 import { apiClient } from './api'
 
 /**
- * Сервис для работы со страницами
+ * Сервис для работы со страницами (внутри подраздела)
  */
 class PagesService {
   /**
-   * Получить все страницы раздела
+   * Получить все страницы подраздела
    */
-  async getPagesBySection(sectionId) {
+  async getPagesBySubsection(subsectionId) {
     try {
-      const response = await apiClient.get(`/sections/${sectionId}/pages`)
+      const response = await apiClient.get(`/subsections/${subsectionId}/pages`)
       return response.data || []
     } catch (error) {
       console.error('Error fetching pages:', error)
@@ -18,27 +18,14 @@ class PagesService {
   }
 
   /**
-   * Получить страницу по ID
+   * Создать новую страницу в подразделе
    */
-  async getPageById(sectionId, pageId) {
+  async createPage(subsectionId, title, content = { blocks: [] }) {
     try {
-      const response = await apiClient.get(`/sections/${sectionId}/pages/${pageId}`)
-      return response.data
-    } catch (error) {
-      console.error('Error fetching page:', error)
-      throw error
-    }
-  }
-
-  /**
-   * Создать новую страницу
-   */
-  async createPage(sectionId, title, content = { blocks: [] }) {
-    try {
-      const response = await apiClient.post(`/sections/${sectionId}/pages`, {
-        title,
-        content,
-      })
+      const response = await apiClient.post(
+        `/subsections/${subsectionId}/pages`,
+        { title, content }
+      )
       return response.data
     } catch (error) {
       console.error('Error creating page:', error)
@@ -49,9 +36,9 @@ class PagesService {
   /**
    * Обновить страницу
    */
-  async updatePage(sectionId, pageId, updates) {
+  async updatePage(pageId, updates) {
     try {
-      const response = await apiClient.put(`/sections/${sectionId}/pages/${pageId}`, updates)
+      const response = await apiClient.put(`/pages/${pageId}`, updates)
       return response.data
     } catch (error) {
       console.error('Error updating page:', error)
@@ -62,9 +49,9 @@ class PagesService {
   /**
    * Удалить страницу
    */
-  async deletePage(sectionId, pageId) {
+  async deletePage(pageId) {
     try {
-      await apiClient.delete(`/sections/${sectionId}/pages/${pageId}`)
+      await apiClient.delete(`/pages/${pageId}`)
       return true
     } catch (error) {
       console.error('Error deleting page:', error)

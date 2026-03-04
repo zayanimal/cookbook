@@ -21,10 +21,17 @@ class CookbookStore {
   }
 
   /**
-   * Загрузить страницы для раздела
+   * Загрузить подразделы для раздела
    */
-  async loadSectionPages(sectionId) {
-    return this.sectionsStore.loadSectionPages(sectionId)
+  async loadSectionSubsections(sectionId) {
+    return this.sectionsStore.loadSectionSubsections(sectionId)
+  }
+
+  /**
+   * Загрузить страницы для подраздела
+   */
+  async loadSubsectionPages(sectionId, subsectionId) {
+    return this.sectionsStore.loadSubsectionPages(sectionId, subsectionId)
   }
 
   /**
@@ -58,9 +65,48 @@ class CookbookStore {
   async deleteSection(sectionId) {
     try {
       await this.sectionsStore.deleteSection(sectionId)
-      // Если удаляемый раздел был выбран, сбрасываем выбор
       if (this.uiStore.selectedSectionId === sectionId) {
         this.uiStore.clearSelection()
+      }
+    } catch (error) {
+      this.uiStore.setError(this.sectionsStore.error)
+      throw error
+    }
+  }
+
+  /**
+   * Создать новый подраздел
+   */
+  async addSubsection(sectionId, title) {
+    try {
+      const subsectionId = await this.sectionsStore.addSubsection(sectionId, title)
+      return subsectionId
+    } catch (error) {
+      this.uiStore.setError(this.sectionsStore.error)
+      throw error
+    }
+  }
+
+  /**
+   * Обновить подраздел
+   */
+  async updateSubsection(sectionId, subsectionId, title) {
+    try {
+      await this.sectionsStore.updateSubsection(sectionId, subsectionId, title)
+    } catch (error) {
+      this.uiStore.setError(this.sectionsStore.error)
+      throw error
+    }
+  }
+
+  /**
+   * Удалить подраздел
+   */
+  async deleteSubsection(sectionId, subsectionId) {
+    try {
+      await this.sectionsStore.deleteSubsection(sectionId, subsectionId)
+      if (this.uiStore.selectedSubsectionId === subsectionId) {
+        this.uiStore.selectPage(null)
       }
     } catch (error) {
       this.uiStore.setError(this.sectionsStore.error)
@@ -73,19 +119,39 @@ class CookbookStore {
    */
   selectSection(sectionId) {
     this.uiStore.selectSection(sectionId)
-    // Загружаем страницы раздела, если они еще не загружены
     const section = this.sectionsStore.getSectionById(sectionId)
-    if (section && (!section.pages || section.pages.length === 0)) {
-      this.loadSectionPages(sectionId)
+    if (section && (!section.subsections || section.subsections.length === 0)) {
+      this.loadSectionSubsections(sectionId)
     }
   }
 
   /**
-   * Создать новую страницу
+   * Выбрать подраздел
    */
-  async addPage(sectionId, title) {
+  selectSubsection(sectionId, subsectionId) {
+    this.uiStore.selectSubsection(subsectionId)
+    const subsection = this.sectionsStore.getSubsectionById(
+      sectionId,
+      subsectionId
+    )
+    if (
+      subsection &&
+      (!subsection.pages || subsection.pages.length === 0)
+    ) {
+      this.loadSubsectionPages(sectionId, subsectionId)
+    }
+  }
+
+  /**
+   * Создать новую страницу в подразделе
+   */
+  async addPage(sectionId, subsectionId, title) {
     try {
-      const pageId = await this.pagesStore.addPage(sectionId, title)
+      const pageId = await this.pagesStore.addPage(
+        sectionId,
+        subsectionId,
+        title
+      )
       return pageId
     } catch (error) {
       this.uiStore.setError(this.pagesStore.error)
@@ -96,9 +162,14 @@ class CookbookStore {
   /**
    * Обновить страницу
    */
-  async updatePage(sectionId, pageId, updates) {
+  async updatePage(sectionId, subsectionId, pageId, updates) {
     try {
-      await this.pagesStore.updatePage(sectionId, pageId, updates)
+      await this.pagesStore.updatePage(
+        sectionId,
+        subsectionId,
+        pageId,
+        updates
+      )
     } catch (error) {
       this.uiStore.setError(this.pagesStore.error)
       throw error
@@ -108,10 +179,9 @@ class CookbookStore {
   /**
    * Удалить страницу
    */
-  async deletePage(sectionId, pageId) {
+  async deletePage(sectionId, subsectionId, pageId) {
     try {
-      await this.pagesStore.deletePage(sectionId, pageId)
-      // Если удаляемая страница была выбрана, сбрасываем выбор страницы
+      await this.pagesStore.deletePage(sectionId, subsectionId, pageId)
       if (this.uiStore.selectedPageId === pageId) {
         this.uiStore.selectPage(null)
       }
@@ -137,12 +207,24 @@ class CookbookStore {
   }
 
   /**
+   * Получить выбранный подраздел
+   */
+  getSelectedSubsection() {
+    const section = this.getSelectedSection()
+    if (!section || !this.uiStore.selectedSubsectionId) return null
+    return this.sectionsStore.getSubsectionById(
+      section.id,
+      this.uiStore.selectedSubsectionId
+    )
+  }
+
+  /**
    * Получить выбранную страницу
    */
   getSelectedPage() {
-    const section = this.getSelectedSection()
-    if (section && this.uiStore.selectedPageId) {
-      return section.pages?.find((p) => p.id === this.uiStore.selectedPageId)
+    const subsection = this.getSelectedSubsection()
+    if (subsection && this.uiStore.selectedPageId) {
+      return subsection.pages?.find((p) => p.id === this.uiStore.selectedPageId)
     }
     return null
   }
@@ -191,6 +273,10 @@ class CookbookStore {
 
   get selectedSectionId() {
     return this.uiStore.selectedSectionId
+  }
+
+  get selectedSubsectionId() {
+    return this.uiStore.selectedSubsectionId
   }
 
   get selectedPageId() {

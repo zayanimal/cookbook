@@ -28,6 +28,7 @@ import {
   Edit,
   Delete,
   MoreVert,
+  FolderOpen,
 } from '@mui/icons-material'
 import styled from '@emotion/styled'
 
@@ -38,24 +39,25 @@ const StyledListItem = styled(ListItem)(({ theme, selected }) => ({
   },
 }))
 
-const SectionItem = observer(({ section, onClose }) => {
+const SubsectionItem = observer(({ section, subsection, onClose }) => {
   const { cookbookStore, authStore } = useStores()
   const [expanded, setExpanded] = useState(false)
   const [menuAnchor, setMenuAnchor] = useState(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [editTitle, setEditTitle] = useState(section.title)
+  const [editTitle, setEditTitle] = useState(subsection.title)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [addPageDialogOpen, setAddPageDialogOpen] = useState(false)
   const [newPageTitle, setNewPageTitle] = useState('')
 
-  const isSelected = cookbookStore.selectedSectionId === section.id
+  const isSelected =
+    cookbookStore.selectedSubsectionId === subsection.id &&
+    cookbookStore.selectedSectionId === section.id
 
   const handleClick = (e) => {
-    // Проверяем, что клик не по иконке меню (она уже обрабатывается отдельно)
     if (!e.target.closest('.MuiIconButton-root')) {
       cookbookStore.selectSection(section.id)
+      cookbookStore.selectSubsection(section.id, subsection.id)
       setExpanded(!expanded)
-      // Не закрываем сайдбар при клике на секцию, только при выборе страницы
     }
   }
 
@@ -64,9 +66,7 @@ const SectionItem = observer(({ section, onClose }) => {
     setMenuAnchor(e.currentTarget)
   }
 
-  const handleMenuClose = () => {
-    setMenuAnchor(null)
-  }
+  const handleMenuClose = () => setMenuAnchor(null)
 
   const handleAddPage = () => {
     handleMenuClose()
@@ -77,13 +77,264 @@ const SectionItem = observer(({ section, onClose }) => {
   const handleCreatePage = async () => {
     if (newPageTitle.trim()) {
       try {
-        const pageId = await cookbookStore.addPage(section.id, newPageTitle.trim())
+        const pageId = await cookbookStore.addPage(
+          section.id,
+          subsection.id,
+          newPageTitle.trim()
+        )
         cookbookStore.selectPage(pageId)
         setAddPageDialogOpen(false)
         setNewPageTitle('')
         if (onClose) onClose()
       } catch (error) {
         alert('Ошибка создания страницы: ' + (error.message || 'Неизвестная ошибка'))
+      }
+    }
+  }
+
+  const handleEditSubsection = () => {
+    handleMenuClose()
+    setEditDialogOpen(true)
+  }
+
+  const handleSaveEdit = async () => {
+    try {
+      await cookbookStore.updateSubsection(section.id, subsection.id, editTitle)
+      setEditDialogOpen(false)
+      setEditTitle(subsection.title)
+    } catch (error) {
+      alert('Ошибка обновления подраздела: ' + (error.message || 'Неизвестная ошибка'))
+    }
+  }
+
+  const handleDeleteSubsection = () => {
+    handleMenuClose()
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    try {
+      await cookbookStore.deleteSubsection(section.id, subsection.id)
+      setDeleteDialogOpen(false)
+    } catch (error) {
+      alert('Ошибка удаления подраздела: ' + (error.message || 'Неизвестная ошибка'))
+      setDeleteDialogOpen(false)
+    }
+  }
+
+  const handlePageClick = (pageId) => {
+    cookbookStore.selectSection(section.id)
+    cookbookStore.selectSubsection(section.id, subsection.id)
+    cookbookStore.selectPage(pageId)
+    if (onClose) onClose()
+  }
+
+  const pages = subsection.pages || []
+
+  return (
+    <>
+      <ListItem
+        disablePadding
+        selected={isSelected}
+        secondaryAction={
+          authStore.canEdit && (
+            <IconButton edge="end" size="small" onClick={handleMenuOpen}>
+              <MoreVert fontSize="small" />
+            </IconButton>
+          )
+        }
+      >
+        <ListItemButton
+          onClick={handleClick}
+          sx={{ pl: 6, width: '100%', cursor: 'pointer' }}
+        >
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            {expanded ? <ExpandLess /> : <ExpandMore />}
+          </ListItemIcon>
+          <ListItemIcon sx={{ minWidth: 28 }}>
+            <FolderOpen fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary={subsection.title} sx={{ flex: 1 }} />
+        </ListItemButton>
+      </ListItem>
+
+      <Collapse in={expanded} timeout="auto" unmountOnExit>
+        <List component="div" disablePadding>
+          {pages.map((page) => {
+            const isPageSelected =
+              cookbookStore.selectedPageId === page.id &&
+              cookbookStore.selectedSubsectionId === subsection.id &&
+              cookbookStore.selectedSectionId === section.id
+            return (
+              <ListItem
+                key={page.id}
+                disablePadding
+                selected={isPageSelected}
+                onClick={() => handlePageClick(page.id)}
+              >
+                <ListItemButton sx={{ pl: 8 }}>
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    <Description fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary={page.title} />
+                </ListItemButton>
+              </ListItem>
+            )
+          })}
+          {authStore.canAdd && (
+            <ListItem disablePadding>
+              <ListItemButton sx={{ pl: 8 }} onClick={handleAddPage}>
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  <Add fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="Добавить страницу" />
+              </ListItemButton>
+            </ListItem>
+          )}
+        </List>
+      </Collapse>
+
+      {authStore.canEdit && (
+        <Menu
+          anchorEl={menuAnchor}
+          open={Boolean(menuAnchor)}
+          onClose={handleMenuClose}
+        >
+          {authStore.canAdd && (
+            <MenuItem onClick={handleAddPage}>
+              <Add fontSize="small" sx={{ mr: 1 }} />
+              Добавить страницу
+            </MenuItem>
+          )}
+          <MenuItem onClick={handleEditSubsection}>
+            <Edit fontSize="small" sx={{ mr: 1 }} />
+            Редактировать подраздел
+          </MenuItem>
+          <MenuItem onClick={handleDeleteSubsection}>
+            <Delete fontSize="small" sx={{ mr: 1 }} />
+            Удалить подраздел
+          </MenuItem>
+        </Menu>
+      )}
+
+      <Dialog
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        maxWidth="sm"
+        sx={{ '& .MuiDialog-paper': { width: '100%', maxWidth: '500px' } }}
+      >
+        <DialogTitle>Редактировать подраздел</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Название подраздела"
+            fullWidth
+            variant="outlined"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialogOpen(false)}>Отмена</Button>
+          <Button onClick={handleSaveEdit} variant="contained">
+            Сохранить
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Удалить подраздел?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Вы уверены, что хотите удалить подраздел "{subsection.title}"? Все
+            страницы в этом подразделе также будут удалены.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Отмена</Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained">
+            Удалить
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={addPageDialogOpen}
+        onClose={() => setAddPageDialogOpen(false)}
+        maxWidth="sm"
+        sx={{ '& .MuiDialog-paper': { width: '100%', maxWidth: '500px' } }}
+      >
+        <DialogTitle>Создать новую страницу</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Название страницы"
+            fullWidth
+            variant="outlined"
+            value={newPageTitle}
+            onChange={(e) => setNewPageTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newPageTitle.trim()) handleCreatePage()
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddPageDialogOpen(false)}>Отмена</Button>
+          <Button
+            onClick={handleCreatePage}
+            variant="contained"
+            disabled={!newPageTitle.trim()}
+          >
+            Создать
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  )
+})
+
+const SectionItem = observer(({ section, onClose }) => {
+  const { cookbookStore, authStore } = useStores()
+  const [expanded, setExpanded] = useState(false)
+  const [menuAnchor, setMenuAnchor] = useState(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editTitle, setEditTitle] = useState(section.title)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [addSubsectionDialogOpen, setAddSubsectionDialogOpen] = useState(false)
+  const [newSubsectionTitle, setNewSubsectionTitle] = useState('')
+
+  const isSelected = cookbookStore.selectedSectionId === section.id
+
+  const handleClick = (e) => {
+    if (!e.target.closest('.MuiIconButton-root')) {
+      cookbookStore.selectSection(section.id)
+      setExpanded(!expanded)
+    }
+  }
+
+  const handleMenuOpen = (e) => {
+    e.stopPropagation()
+    setMenuAnchor(e.currentTarget)
+  }
+
+  const handleMenuClose = () => setMenuAnchor(null)
+
+  const handleAddSubsection = () => {
+    handleMenuClose()
+    setNewSubsectionTitle('')
+    setAddSubsectionDialogOpen(true)
+  }
+
+  const handleCreateSubsection = async () => {
+    if (newSubsectionTitle.trim()) {
+      try {
+        await cookbookStore.addSubsection(section.id, newSubsectionTitle.trim())
+        setAddSubsectionDialogOpen(false)
+        setNewSubsectionTitle('')
+      } catch (error) {
+        alert('Ошибка создания подраздела: ' + (error.message || 'Неизвестная ошибка'))
       }
     }
   }
@@ -118,11 +369,7 @@ const SectionItem = observer(({ section, onClose }) => {
     }
   }
 
-  const handlePageClick = (pageId) => {
-    cookbookStore.selectSection(section.id)
-    cookbookStore.selectPage(pageId)
-    if (onClose) onClose()
-  }
+  const subsections = section.subsections || []
 
   return (
     <>
@@ -137,52 +384,34 @@ const SectionItem = observer(({ section, onClose }) => {
           )
         }
       >
-        <ListItemButton 
-          onClick={handleClick} 
+        <ListItemButton
+          onClick={handleClick}
           sx={{ pl: 2, width: '100%', cursor: 'pointer' }}
         >
           <ListItemIcon sx={{ minWidth: 36 }}>
             {expanded ? <ExpandLess /> : <ExpandMore />}
           </ListItemIcon>
-          <ListItemText
-            primary={section.title}
-            sx={{ flex: 1 }}
-          />
+          <ListItemText primary={section.title} sx={{ flex: 1 }} />
         </ListItemButton>
       </StyledListItem>
 
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <List component="div" disablePadding>
-          {section.pages.map((page) => {
-            const isPageSelected =
-              cookbookStore.selectedPageId === page.id &&
-              cookbookStore.selectedSectionId === section.id
-            return (
-              <ListItem
-                key={page.id}
-                disablePadding
-                selected={isPageSelected}
-                onClick={() => handlePageClick(page.id)}
-              >
-                <ListItemButton sx={{ pl: 6 }}>
-                  <ListItemIcon sx={{ minWidth: 36 }}>
-                    <Description fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText primary={page.title} />
-                </ListItemButton>
-              </ListItem>
-            )
-          })}
+          {subsections.map((subsection) => (
+            <SubsectionItem
+              key={subsection.id}
+              section={section}
+              subsection={subsection}
+              onClose={onClose}
+            />
+          ))}
           {authStore.canAdd && (
             <ListItem disablePadding>
-              <ListItemButton
-                sx={{ pl: 6 }}
-                onClick={handleAddPage}
-              >
+              <ListItemButton sx={{ pl: 6 }} onClick={handleAddSubsection}>
                 <ListItemIcon sx={{ minWidth: 36 }}>
                   <Add fontSize="small" />
                 </ListItemIcon>
-                <ListItemText primary="Добавить страницу" />
+                <ListItemText primary="Добавить подраздел" />
               </ListItemButton>
             </ListItem>
           )}
@@ -196,9 +425,9 @@ const SectionItem = observer(({ section, onClose }) => {
           onClose={handleMenuClose}
         >
           {authStore.canAdd && (
-            <MenuItem onClick={handleAddPage}>
+            <MenuItem onClick={handleAddSubsection}>
               <Add fontSize="small" sx={{ mr: 1 }} />
-              Добавить страницу
+              Добавить подраздел
             </MenuItem>
           )}
           <MenuItem onClick={handleEditSection}>
@@ -216,12 +445,8 @@ const SectionItem = observer(({ section, onClose }) => {
         open={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}
         maxWidth="sm"
-        sx={{
-          '& .MuiDialog-paper': {
-            width: '100%',
-            maxWidth: '500px',
-          },
-        }}>
+        sx={{ '& .MuiDialog-paper': { width: '100%', maxWidth: '500px' } }}
+      >
         <DialogTitle>Редактировать раздел</DialogTitle>
         <DialogContent>
           <TextField
@@ -246,8 +471,8 @@ const SectionItem = observer(({ section, onClose }) => {
         <DialogTitle>Удалить раздел?</DialogTitle>
         <DialogContent>
           <Typography>
-            Вы уверены, что хотите удалить раздел "{section.title}"? Все страницы
-            в этом разделе также будут удалены.
+            Вы уверены, что хотите удалить раздел "{section.title}"? Все
+            подразделы и страницы в этом разделе также будут удалены.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -259,39 +484,34 @@ const SectionItem = observer(({ section, onClose }) => {
       </Dialog>
 
       <Dialog
-        open={addPageDialogOpen}
-        onClose={() => setAddPageDialogOpen(false)}
+        open={addSubsectionDialogOpen}
+        onClose={() => setAddSubsectionDialogOpen(false)}
         maxWidth="sm"
-        sx={{
-          '& .MuiDialog-paper': {
-            width: '100%',
-            maxWidth: '500px',
-          },
-        }}
+        sx={{ '& .MuiDialog-paper': { width: '100%', maxWidth: '500px' } }}
       >
-        <DialogTitle>Создать новую страницу</DialogTitle>
+        <DialogTitle>Добавить подраздел</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="Название страницы"
+            label="Название подраздела"
             fullWidth
             variant="outlined"
-            value={newPageTitle}
-            onChange={(e) => setNewPageTitle(e.target.value)}
+            value={newSubsectionTitle}
+            onChange={(e) => setNewSubsectionTitle(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && newPageTitle.trim()) {
-                handleCreatePage()
+              if (e.key === 'Enter' && newSubsectionTitle.trim()) {
+                handleCreateSubsection()
               }
             }}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddPageDialogOpen(false)}>Отмена</Button>
+          <Button onClick={() => setAddSubsectionDialogOpen(false)}>Отмена</Button>
           <Button
-            onClick={handleCreatePage}
+            onClick={handleCreateSubsection}
             variant="contained"
-            disabled={!newPageTitle.trim()}
+            disabled={!newSubsectionTitle.trim()}
           >
             Создать
           </Button>

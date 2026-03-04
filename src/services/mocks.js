@@ -50,28 +50,54 @@ export function getMockData(endpoint, method, data, headers = {}) {
     }
   }
 
-  // GET /sections/:id/pages
-  const pagesMatch = normalizedEndpoint.match(/^\/sections\/(\d+)\/pages$/)
-  if (pagesMatch && method === 'GET') {
-    const sectionId = pagesMatch[1]
+  // GET /sections/:id/subsections
+  const subsectionsMatch = normalizedEndpoint.match(
+    /^\/sections\/(\d+)\/subsections$/
+  )
+  if (subsectionsMatch && method === 'GET') {
+    const sectionId = subsectionsMatch[1]
     const section = mockCache.sections.data.find((s) => s.id === sectionId)
     return {
-      data: section?.pages || [],
+      data: section?.subsections || [],
       success: true,
     }
   }
 
-  // GET /sections/:id/pages/:pageId
-  const pageMatch = normalizedEndpoint.match(/^\/sections\/(\d+)\/pages\/(.+)$/)
-  if (pageMatch && method === 'GET') {
-    const sectionId = pageMatch[1]
-    const pageId = pageMatch[2]
-    const section = mockCache.sections.data.find((s) => s.id === sectionId)
-    const page = section?.pages.find((p) => p.id === pageId)
-    return {
-      data: page,
-      success: true,
+  // GET /subsections/:subsectionId
+  const subsectionMatch = normalizedEndpoint.match(/^\/subsections\/([^/]+)$/)
+  if (subsectionMatch && method === 'GET') {
+    const subsectionId = subsectionMatch[1]
+    for (const section of mockCache.sections.data) {
+      const subsection = section.subsections?.find((ss) => ss.id === subsectionId)
+      if (subsection) return { data: subsection, success: true }
     }
+    return { data: null, success: true }
+  }
+
+  // GET /subsections/:subsectionId/pages
+  const subsectionPagesMatch = normalizedEndpoint.match(
+    /^\/subsections\/([^/]+)\/pages$/
+  )
+  if (subsectionPagesMatch && method === 'GET') {
+    const subsectionId = subsectionPagesMatch[1]
+    for (const section of mockCache.sections.data) {
+      const subsection = section.subsections?.find((ss) => ss.id === subsectionId)
+      if (subsection) return { data: subsection.pages || [], success: true }
+    }
+    return { data: [], success: true }
+  }
+
+  // GET /pages/:pageId
+  const pageMatch = normalizedEndpoint.match(/^\/pages\/(.+)$/)
+  if (pageMatch && method === 'GET') {
+    const pageId = pageMatch[1]
+    for (const section of mockCache.sections.data) {
+      for (const subsection of section.subsections || []) {
+        const page = subsection.pages?.find((p) => p.id === pageId)
+        if (page) return { data: page, success: true }
+      }
+    }
+    return { data: null, success: true }
   }
 
   // POST /sections
@@ -79,7 +105,7 @@ export function getMockData(endpoint, method, data, headers = {}) {
     const newSection = {
       id: Date.now().toString(),
       title: data.title,
-      pages: [],
+      subsections: [],
     }
     mockCache.sections.data.push(newSection)
     return {
@@ -112,51 +138,94 @@ export function getMockData(endpoint, method, data, headers = {}) {
     }
   }
 
-  // POST /sections/:id/pages
-  if (pagesMatch && method === 'POST') {
-    const sectionId = pagesMatch[1]
+  // POST /sections/:id/subsections
+  if (subsectionsMatch && method === 'POST') {
+    const sectionId = subsectionsMatch[1]
     const section = mockCache.sections.data.find((s) => s.id === sectionId)
     if (section) {
-      const newPage = {
+      if (!section.subsections) section.subsections = []
+      const newSubsection = {
         id: `${sectionId}-${Date.now()}`,
         title: data.title,
-        content: data.content || { blocks: [] },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        pages: [],
       }
-      section.pages.push(newPage)
+      section.subsections.push(newSubsection)
       return {
-        data: newPage,
+        data: newSubsection,
         success: true,
       }
     }
   }
 
-  // PUT /sections/:id/pages/:pageId
+  // PUT /subsections/:subsectionId
+  if (subsectionMatch && method === 'PUT') {
+    const subsectionId = subsectionMatch[1]
+    for (const section of mockCache.sections.data) {
+      const subsection = section.subsections?.find((ss) => ss.id === subsectionId)
+      if (subsection) {
+        subsection.title = data.title
+        return { data: subsection, success: true }
+      }
+    }
+  }
+
+  // DELETE /subsections/:subsectionId
+  if (subsectionMatch && method === 'DELETE') {
+    const subsectionId = subsectionMatch[1]
+    for (const section of mockCache.sections.data) {
+      if (section.subsections) {
+        const before = section.subsections.length
+        section.subsections = section.subsections.filter((ss) => ss.id !== subsectionId)
+        if (section.subsections.length < before) return { success: true }
+      }
+    }
+  }
+
+  // POST /subsections/:subsectionId/pages
+  if (subsectionPagesMatch && method === 'POST') {
+    const subsectionId = subsectionPagesMatch[1]
+    for (const section of mockCache.sections.data) {
+      const subsection = section.subsections?.find((ss) => ss.id === subsectionId)
+      if (subsection) {
+        if (!subsection.pages) subsection.pages = []
+        const newPage = {
+          id: `${subsectionId}-${Date.now()}`,
+          title: data.title,
+          content: data.content || { blocks: [] },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        subsection.pages.push(newPage)
+        return { data: newPage, success: true }
+      }
+    }
+  }
+
+  // PUT /pages/:pageId
   if (pageMatch && method === 'PUT') {
-    const sectionId = pageMatch[1]
-    const pageId = pageMatch[2]
-    const section = mockCache.sections.data.find((s) => s.id === sectionId)
-    const page = section?.pages.find((p) => p.id === pageId)
-    if (page) {
-      Object.assign(page, data)
-      page.updatedAt = new Date().toISOString()
-      return {
-        data: page,
-        success: true,
+    const pageId = pageMatch[1]
+    for (const section of mockCache.sections.data) {
+      for (const subsection of section.subsections || []) {
+        const page = subsection.pages?.find((p) => p.id === pageId)
+        if (page) {
+          Object.assign(page, data)
+          page.updatedAt = new Date().toISOString()
+          return { data: page, success: true }
+        }
       }
     }
   }
 
-  // DELETE /sections/:id/pages/:pageId
+  // DELETE /pages/:pageId
   if (pageMatch && method === 'DELETE') {
-    const sectionId = pageMatch[1]
-    const pageId = pageMatch[2]
-    const section = mockCache.sections.data.find((s) => s.id === sectionId)
-    if (section) {
-      section.pages = section.pages.filter((p) => p.id !== pageId)
-      return {
-        success: true,
+    const pageId = pageMatch[1]
+    for (const section of mockCache.sections.data) {
+      for (const subsection of section.subsections || []) {
+        if (subsection.pages) {
+          const before = subsection.pages.length
+          subsection.pages = subsection.pages.filter((p) => p.id !== pageId)
+          if (subsection.pages.length < before) return { success: true }
+        }
       }
     }
   }

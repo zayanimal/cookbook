@@ -26,7 +26,9 @@ const EmptyState = observer(() => {
   const [pageTitle, setPageTitle] = useState('')
 
   const selectedSection = cookbookStore.getSelectedSection()
-  const hasPages = selectedSection && selectedSection.pages && selectedSection.pages.length > 0
+  const selectedSubsection = cookbookStore.getSelectedSubsection()
+  const pages = selectedSubsection?.pages || []
+  const hasPages = pages.length > 0
 
   const handleCreatePageClick = () => {
     setPageTitle('')
@@ -34,9 +36,13 @@ const EmptyState = observer(() => {
   }
 
   const handleCreatePage = async () => {
-    if (selectedSection && pageTitle.trim()) {
+    if (selectedSection && selectedSubsection && pageTitle.trim()) {
       try {
-        const pageId = await cookbookStore.addPage(selectedSection.id, pageTitle.trim())
+        const pageId = await cookbookStore.addPage(
+          selectedSection.id,
+          selectedSubsection.id,
+          pageTitle.trim()
+        )
         cookbookStore.selectPage(pageId)
         setDialogOpen(false)
         setPageTitle('')
@@ -50,8 +56,8 @@ const EmptyState = observer(() => {
     cookbookStore.selectPage(pageId)
   }
 
-  // Если выбран раздел с существующими страницами - показываем список
-  if (selectedSection && hasPages) {
+  // Если выбран подраздел с существующими страницами — показываем список
+  if (selectedSection && selectedSubsection && hasPages) {
     return (
       <>
         <Box
@@ -63,18 +69,12 @@ const EmptyState = observer(() => {
             pt: 4,
           }}
         >
-          <Paper
-            sx={{
-              p: 4,
-              maxWidth: 800,
-              width: '100%',
-            }}
-          >
+          <Paper sx={{ p: 4, maxWidth: 800, width: '100%' }}>
             <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
-              Страницы раздела "{selectedSection.title}"
+              Страницы подраздела "{selectedSubsection.title}"
             </Typography>
             <List>
-              {selectedSection.pages.map((page) => (
+              {pages.map((page) => (
                 <ListItem
                   key={page.id}
                   disablePadding
@@ -95,12 +95,7 @@ const EmptyState = observer(() => {
           open={dialogOpen}
           onClose={() => setDialogOpen(false)}
           maxWidth="sm"
-          sx={{
-            '& .MuiDialog-paper': {
-              width: '100%',
-              maxWidth: '550px',
-            },
-          }}
+          sx={{ '& .MuiDialog-paper': { width: '100%', maxWidth: '550px' } }}
         >
           <DialogTitle>Создать новую страницу</DialogTitle>
           <DialogContent>
@@ -113,9 +108,7 @@ const EmptyState = observer(() => {
               value={pageTitle}
               onChange={(e) => setPageTitle(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && pageTitle.trim()) {
-                  handleCreatePage()
-                }
+                if (e.key === 'Enter' && pageTitle.trim()) handleCreatePage()
               }}
             />
           </DialogContent>
@@ -134,8 +127,8 @@ const EmptyState = observer(() => {
     )
   }
 
-  // Если выбран пустой раздел - показываем кнопку создания страницы
-  if (selectedSection && !hasPages) {
+  // Если выбран пустой подраздел — показываем кнопку создания страницы
+  if (selectedSection && selectedSubsection && !hasPages) {
     return (
       <>
         <Box
@@ -146,19 +139,13 @@ const EmptyState = observer(() => {
             minHeight: '60vh',
           }}
         >
-          <Paper
-            sx={{
-              p: 4,
-              textAlign: 'center',
-              maxWidth: 500,
-            }}
-          >
+          <Paper sx={{ p: 4, textAlign: 'center', maxWidth: 500 }}>
             <DescriptionIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h5" gutterBottom>
-              Раздел "{selectedSection.title}" пуст
+              Подраздел "{selectedSubsection.title}" пуст
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Создайте первую страницу в этом разделе
+              Создайте первую страницу в этом подразделе
             </Typography>
             <Button
               variant="contained"
@@ -173,12 +160,7 @@ const EmptyState = observer(() => {
           open={dialogOpen}
           onClose={() => setDialogOpen(false)}
           maxWidth="sm"
-          sx={{
-            '& .MuiDialog-paper': {
-              width: '100%',
-              maxWidth: '550px',
-            },
-          }}
+          sx={{ '& .MuiDialog-paper': { width: '100%', maxWidth: '550px' } }}
         >
           <DialogTitle>Создать новую страницу</DialogTitle>
           <DialogContent>
@@ -191,9 +173,7 @@ const EmptyState = observer(() => {
               value={pageTitle}
               onChange={(e) => setPageTitle(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && pageTitle.trim()) {
-                  handleCreatePage()
-                }
+                if (e.key === 'Enter' && pageTitle.trim()) handleCreatePage()
               }}
             />
           </DialogContent>
@@ -212,7 +192,7 @@ const EmptyState = observer(() => {
     )
   }
 
-  // Если ничего не выбрано - показываем обычный EmptyState
+  // Если ничего не выбрано или выбран только раздел без подраздела
   return (
     <Box
       sx={{
@@ -222,20 +202,14 @@ const EmptyState = observer(() => {
         minHeight: '60vh',
       }}
     >
-      <Paper
-        sx={{
-          p: 4,
-          textAlign: 'center',
-          maxWidth: 500,
-        }}
-      >
+      <Paper sx={{ p: 4, textAlign: 'center', maxWidth: 500 }}>
         <DescriptionIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
         <Typography variant="h5" gutterBottom>
           Выберите страницу для просмотра
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Выберите страницу из боковой панели или создайте новую страницу в
-          разделе
+          Выберите раздел, затем подраздел и страницу в боковой панели или
+          создайте новую страницу в подразделе
         </Typography>
       </Paper>
     </Box>

@@ -16,6 +16,9 @@ import {
   DiffSourceToggleWrapper,
   ConditionalContents,
   ChangeCodeMirrorLanguage,
+  linkPlugin,
+  linkDialogPlugin,
+  CreateLink,
   UndoRedo,
   BoldItalicUnderlineToggles,
   BlockTypeSelect,
@@ -58,6 +61,8 @@ const editorPlugins = (diffMarkdown) => [
   listsPlugin(),
   quotePlugin(),
   thematicBreakPlugin(),
+  linkPlugin(),
+  linkDialogPlugin(),
   codeBlockPlugin({ defaultCodeBlockLanguage: 'javascript' }),
   codeMirrorPlugin({ codeBlockLanguages: CODE_BLOCK_LANGUAGES, autoLoadLanguageSupport: true }),
   tablePlugin(),
@@ -83,6 +88,7 @@ const editorPlugins = (diffMarkdown) => [
                   <Separator />
                   <ListsToggle />
                   <Separator />
+                  <CreateLink />
                   <InsertTable />
                   <InsertThematicBreak />
                   <InsertCodeBlock />
@@ -101,6 +107,7 @@ const viewPlugins = [
   listsPlugin(),
   quotePlugin(),
   thematicBreakPlugin(),
+  linkPlugin(),
   codeBlockPlugin({ defaultCodeBlockLanguage: 'javascript' }),
   codeMirrorPlugin({ codeBlockLanguages: CODE_BLOCK_LANGUAGES, autoLoadLanguageSupport: true }),
   tablePlugin(),

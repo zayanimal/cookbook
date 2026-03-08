@@ -191,7 +191,7 @@ export function getMockData(endpoint, method, data, headers = {}) {
         const newPage = {
           id: `${subsectionId}-${Date.now()}`,
           title: data.title,
-          content: data.content || { blocks: [] },
+          content: data.content || '',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }

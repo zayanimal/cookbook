@@ -1,15 +1,31 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { observer } from 'mobx-react-lite'
 import { useStores } from '../hooks/useStores'
-import EditorJS from '@editorjs/editorjs'
-import Header from '@editorjs/header'
-import List from '@editorjs/list'
-import Paragraph from '@editorjs/paragraph'
-import Code from '@editorjs/code'
-import Quote from '@editorjs/quote'
-import Table from '@editorjs/table'
-// import LinkTool from '@editorjs/link'
-import Image from '@editorjs/image'
+import {
+  MDXEditor,
+  headingsPlugin,
+  listsPlugin,
+  quotePlugin,
+  thematicBreakPlugin,
+  markdownShortcutPlugin,
+  codeBlockPlugin,
+  codeMirrorPlugin,
+  tablePlugin,
+  toolbarPlugin,
+  diffSourcePlugin,
+  DiffSourceToggleWrapper,
+  ConditionalContents,
+  ChangeCodeMirrorLanguage,
+  UndoRedo,
+  BoldItalicUnderlineToggles,
+  BlockTypeSelect,
+  ListsToggle,
+  InsertTable,
+  InsertThematicBreak,
+  InsertCodeBlock,
+  Separator,
+} from '@mdxeditor/editor'
+import '@mdxeditor/editor/style.css'
 import {
   Box,
   Typography,
@@ -29,40 +45,72 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import SaveIcon from '@mui/icons-material/Save'
 import CloseIcon from '@mui/icons-material/Close'
 import TitleIcon from '@mui/icons-material/Title'
-import styled from '@emotion/styled'
 
-const EditorContainer = styled(Box)(({ theme }) => ({
-  '& .codex-editor': {
-    fontFamily: theme.typography.fontFamily,
-  },
-  '& .ce-block__content': {
-    maxWidth: '100%',
-  },
-  '& .ce-toolbar__content': {
-    maxWidth: '100%',
-  },
-  '& .ce-popover': {
-    maxWidth: '100%',
-  },
-  '& .ce-toolbar__plus': {
-    left: 'auto',
-    right: '0',
-  },
-  [theme.breakpoints.down('md')]: {
-    '& .ce-toolbar': {
-      position: 'relative',
-    },
-    '& .ce-inline-toolbar': {
-      maxWidth: 'calc(100vw - 32px)',
-    },
-  },
-}))
+const CODE_BLOCK_LANGUAGES = {
+  '': 'Без подсветки',
+  javascript: 'JavaScript',
+  bash: 'Bash',
+  java: 'Java',
+}
+
+const editorPlugins = (diffMarkdown) => [
+  headingsPlugin(),
+  listsPlugin(),
+  quotePlugin(),
+  thematicBreakPlugin(),
+  codeBlockPlugin({ defaultCodeBlockLanguage: 'javascript' }),
+  codeMirrorPlugin({ codeBlockLanguages: CODE_BLOCK_LANGUAGES, autoLoadLanguageSupport: true }),
+  tablePlugin(),
+  markdownShortcutPlugin(),
+  diffSourcePlugin({ diffMarkdown, viewMode: 'rich-text' }),
+  toolbarPlugin({
+    toolbarContents: () => (
+      <DiffSourceToggleWrapper>
+        <ConditionalContents
+          options={[
+            {
+              when: (editor) => editor?.editorType === 'codeblock',
+              contents: () => <ChangeCodeMirrorLanguage />,
+            },
+            {
+              fallback: () => (
+                <>
+                  <UndoRedo />
+                  <Separator />
+                  <BoldItalicUnderlineToggles />
+                  <Separator />
+                  <BlockTypeSelect />
+                  <Separator />
+                  <ListsToggle />
+                  <Separator />
+                  <InsertTable />
+                  <InsertThematicBreak />
+                  <InsertCodeBlock />
+                </>
+              ),
+            },
+          ]}
+        />
+      </DiffSourceToggleWrapper>
+    ),
+  }),
+]
+
+const viewPlugins = [
+  headingsPlugin(),
+  listsPlugin(),
+  quotePlugin(),
+  thematicBreakPlugin(),
+  codeBlockPlugin({ defaultCodeBlockLanguage: 'javascript' }),
+  codeMirrorPlugin({ codeBlockLanguages: CODE_BLOCK_LANGUAGES, autoLoadLanguageSupport: true }),
+  tablePlugin(),
+]
 
 const PageView = observer(() => {
   const { cookbookStore, authStore } = useStores()
   const editorRef = useRef(null)
-  const editorInstanceRef = useRef(null)
-  const [isEditMode, setIsEditMode] = useState(false) // Режим редактирования выключен по умолчанию
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [originalContent, setOriginalContent] = useState('')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editedTitle, setEditedTitle] = useState('')
@@ -71,7 +119,6 @@ const PageView = observer(() => {
   const section = cookbookStore.getSelectedSection()
   const subsection = cookbookStore.getSelectedSubsection()
 
-  // Инициализируем editedTitle при изменении страницы
   useEffect(() => {
     if (page) {
       setEditedTitle(page.title)
@@ -79,153 +126,26 @@ const PageView = observer(() => {
     }
   }, [page?.id])
 
-  // Уничтожаем предыдущий экземпляр редактора
-  const cleanup = async () => {
-    if (editorInstanceRef.current) {
-      try {
-        if (typeof editorInstanceRef.current.destroy === 'function') {
-          await editorInstanceRef.current.destroy()
-        } else if (typeof editorInstanceRef.current.destroy === 'object' && editorInstanceRef.current.destroy.then) {
-          await editorInstanceRef.current.destroy().catch(() => {})
-        }
-      } catch (error) {
-        console.warn('Error destroying editor:', error)
-      }
-      editorInstanceRef.current = null
-    }
-    if (editorRef.current) {
-      editorRef.current.innerHTML = ''
-    }
-  }
-
-  // Инициализация редактора при включении режима редактирования
-  useEffect(() => {
-    if (!page || !editorRef.current || !isEditMode) {
-      // Если режим редактирования выключен - очищаем редактор
-      if (!isEditMode) {
-        cleanup()
-      }
-      return
-    }
-
-    let isMounted = true
-
-    const initEditor = async () => {
-      await cleanup()
-      await new Promise((resolve) => setTimeout(resolve, 100))
-
-      if (!isMounted || !editorRef.current || !page) return
-
-      if (editorRef.current.innerHTML.trim() !== '') {
-        editorRef.current.innerHTML = ''
-      }
-
-      try {
-        const editorInstance = new EditorJS({
-          holder: editorRef.current,
-          tools: {
-            header: {
-              class: Header,
-              config: {
-                placeholder: 'Введите заголовок',
-                levels: [2, 3, 4],
-                defaultLevel: 2,
-              },
-            },
-            paragraph: {
-              class: Paragraph,
-              inlineToolbar: true,
-            },
-            list: {
-              class: List,
-              inlineToolbar: true,
-              config: {
-                defaultStyle: 'unordered',
-              },
-            },
-            code: {
-              class: Code,
-              config: {
-                placeholder: 'Введите код',
-              },
-            },
-            quote: {
-              class: Quote,
-              inlineToolbar: true,
-              config: {
-                quotePlaceholder: 'Введите цитату',
-                captionPlaceholder: 'Автор цитаты',
-              },
-            },
-            table: {
-              class: Table,
-              inlineToolbar: true,
-              config: {
-                rows: 2,
-                cols: 2,
-              },
-            },
-            image: {
-              class: Image,
-              config: {
-                endpoints: {
-                  byFile: '/api/image',
-                },
-                uploader: {
-                  async uploadByFile(file) {
-                    return {
-                      success: 1,
-                      file: {
-                        url: URL.createObjectURL(file),
-                      },
-                    }
-                  },
-                },
-              },
-            },
-          },
-          data: page.content || { blocks: [] },
-          placeholder: 'Начните вводить текст...',
-          autofocus: true,
-        })
-
-        if (isMounted) {
-          editorInstanceRef.current = editorInstance
-        }
-      } catch (error) {
-        console.error('Error initializing editor:', error)
-      }
-    }
-
-    initEditor()
-
-    return () => {
-      isMounted = false
-      cleanup()
-    }
-  }, [page?.id, isEditMode])
-
-  // Сбрасываем режим редактирования при смене страницы
   useEffect(() => {
     setIsEditMode(false)
   }, [page?.id])
 
   const handleEnableEditMode = () => {
+    const content = typeof page.content === 'string' ? page.content : ''
+    setOriginalContent(content)
     setIsEditMode(true)
   }
 
   const handleSaveAndExit = async () => {
-    if (editorInstanceRef.current) {
-      try {
-        const outputData = await editorInstanceRef.current.save()
-        await cookbookStore.updatePage(section.id, subsection.id, page.id, {
-          content: outputData,
-        })
-        setIsEditMode(false)
-      } catch (error) {
-        console.error('Error saving editor content:', error)
-        alert('Ошибка сохранения страницы: ' + (error.message || 'Неизвестная ошибка'))
-      }
+    try {
+      const markdown = editorRef.current?.getMarkdown() ?? ''
+      await cookbookStore.updatePage(section.id, subsection.id, page.id, {
+        content: markdown,
+      })
+      setIsEditMode(false)
+    } catch (error) {
+      console.error('Error saving editor content:', error)
+      alert('Ошибка сохранения страницы: ' + (error.message || 'Неизвестная ошибка'))
     }
   }
 
@@ -248,17 +168,17 @@ const PageView = observer(() => {
       } catch (error) {
         console.error('Error saving page title:', error)
         alert('Ошибка сохранения названия страницы: ' + (error.message || 'Неизвестная ошибка'))
-        setEditedTitle(page.title) // Восстанавливаем исходное значение
+        setEditedTitle(page.title)
       }
     } else {
       setIsEditingTitle(false)
-      setEditedTitle(page.title) // Восстанавливаем исходное значение
+      setEditedTitle(page.title)
     }
   }
 
   const handleCancelEditTitle = () => {
     setIsEditingTitle(false)
-    setEditedTitle(page.title) // Восстанавливаем исходное значение
+    setEditedTitle(page.title)
   }
 
   const handleDelete = () => {
@@ -279,174 +199,35 @@ const PageView = observer(() => {
     return null
   }
 
-  // Рендеринг контента в режиме просмотра
-  const renderContent = () => {
-    if (!page.content || !page.content.blocks || page.content.blocks.length === 0) {
-      return (
-        <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-          Страница пуста. Нажмите "Редактировать" для добавления содержимого.
-        </Typography>
-      )
-    }
-
-    return page.content.blocks.map((block, index) => {
-      switch (block.type) {
-        case 'header':
-          const HeaderTag = `h${block.data.level || 2}`
-          return (
-            <Typography
-              key={index}
-              variant={`h${block.data.level + 3 || 5}`}
-              component={HeaderTag}
-              sx={{ mt: index > 0 ? 3 : 0, mb: 2 }}
-            >
-              {block.data.text}
-            </Typography>
-          )
-        case 'paragraph':
-          return (
-            <Typography
-              key={index}
-              variant="body1"
-              sx={{ mb: 2 }}
-              dangerouslySetInnerHTML={{ __html: block.data.text }}
-            />
-          )
-        case 'list':
-          const ListTag = block.data.style === 'ordered' ? 'ol' : 'ul'
-          return (
-            <Box key={index} component={ListTag} sx={{ mb: 2, pl: 3 }}>
-              {block.data.items.map((item, itemIndex) => (
-                <li key={itemIndex} dangerouslySetInnerHTML={{ __html: item }} />
-              ))}
-            </Box>
-          )
-        case 'code':
-          return (
-            <Box
-              key={index}
-              component="pre"
-              sx={{
-                backgroundColor: 'grey.100',
-                p: 2,
-                borderRadius: 1,
-                overflow: 'auto',
-                mb: 2,
-                fontFamily: 'monospace',
-              }}
-            >
-              <code>{block.data.code}</code>
-            </Box>
-          )
-        case 'quote':
-          return (
-            <Box
-              key={index}
-              sx={{
-                borderLeft: 4,
-                borderColor: 'primary.main',
-                pl: 2,
-                py: 1,
-                mb: 2,
-                fontStyle: 'italic',
-              }}
-            >
-              <Typography variant="body1">{block.data.text}</Typography>
-              {block.data.caption && (
-                <Typography variant="caption" color="text.secondary">
-                  — {block.data.caption}
-                </Typography>
-              )}
-            </Box>
-          )
-        case 'image':
-          return (
-            <Box key={index} sx={{ mb: 2, textAlign: 'center' }}>
-              <img
-                src={block.data.file?.url}
-                alt={block.data.caption || ''}
-                style={{ maxWidth: '100%', height: 'auto' }}
-              />
-              {block.data.caption && (
-                <Typography variant="caption" color="text.secondary" display="block">
-                  {block.data.caption}
-                </Typography>
-              )}
-            </Box>
-          )
-        case 'table':
-          return (
-            <Box key={index} sx={{ mb: 2, overflow: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <tbody>
-                  {block.data.content.map((row, rowIndex) => (
-                    <tr key={rowIndex}>
-                      {row.map((cell, cellIndex) => (
-                        <td
-                          key={cellIndex}
-                          style={{
-                            border: '1px solid #ddd',
-                            padding: '8px',
-                          }}
-                          dangerouslySetInnerHTML={{ __html: cell }}
-                        />
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Box>
-          )
-        default:
-          return null
-      }
-    })
-  }
+  const content = typeof page.content === 'string' ? page.content : ''
 
   return (
-    <Paper sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, width: '100%', boxSizing: 'border-box', mx: 'auto' }}>
-      {/* Заголовок страницы с возможностью редактирования */}
-      <Box sx={{ mb: 3 }}>
+    <Paper sx={{ p: { xs: 2, md: 4 }, width: '100%', boxSizing: 'border-box' }}>
+      <Box sx={{ mb: 0 }}>
         {isEditingTitle && authStore.canEdit ? (
           <TextField
             fullWidth
             value={editedTitle}
             onChange={(e) => setEditedTitle(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleSaveTitle()
-              } else if (e.key === 'Escape') {
-                handleCancelEditTitle()
-              }
+              if (e.key === 'Enter') handleSaveTitle()
+              else if (e.key === 'Escape') handleCancelEditTitle()
             }}
             autoFocus
             variant="standard"
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton
-                    size="small"
-                    onClick={handleSaveTitle}
-                    sx={{ color: 'primary.main' }}
-                  >
+                  <IconButton size="small" onClick={handleSaveTitle} sx={{ color: 'primary.main' }}>
                     <SaveIcon fontSize="small" />
                   </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={handleCancelEditTitle}
-                    sx={{ color: 'text.secondary' }}
-                  >
+                  <IconButton size="small" onClick={handleCancelEditTitle} sx={{ color: 'text.secondary' }}>
                     <CloseIcon fontSize="small" />
                   </IconButton>
                 </InputAdornment>
               ),
             }}
-            sx={{
-              '& .MuiInputBase-root': {
-                fontSize: '1.5rem',
-                fontWeight: 500,
-              },
-            }}
+            sx={{ '& .MuiInputBase-root': { fontSize: '1.5rem', fontWeight: 500 } }}
           />
         ) : (
           <Box
@@ -454,28 +235,16 @@ const PageView = observer(() => {
               display: 'flex',
               alignItems: 'center',
               gap: 1,
-              minWidth: 0, // чтобы контент мог сжиматься и не выталкивал иконки
+              minWidth: 0,
               cursor: authStore.canEdit ? 'pointer' : 'default',
-              '&:hover': authStore.canEdit
-                ? {
-                    '& .edit-title-icon': {
-                      opacity: 1,
-                    },
-                }
-                : {},
+              '&:hover': authStore.canEdit ? { '& .edit-title-icon': { opacity: 1 } } : {},
             }}
             onClick={authStore.canEdit ? handleStartEditTitle : undefined}
           >
             <Typography
               variant="h5"
               component="h1"
-              sx={{
-                fontWeight: 500,
-                flexGrow: 1,
-                minWidth: 0,
-                wordBreak: 'break-word',
-                overflowWrap: 'break-word',
-              }}
+              sx={{ fontWeight: 500, flexGrow: 1, minWidth: 0, wordBreak: 'break-word', overflowWrap: 'break-word' }}
             >
               {page.title}
             </Typography>
@@ -484,11 +253,7 @@ const PageView = observer(() => {
                 <IconButton
                   size="small"
                   className="edit-title-icon"
-                  sx={{
-                    opacity: 0,
-                    transition: 'opacity 0.2s',
-                    color: 'primary.main',
-                  }}
+                  sx={{ opacity: 0, transition: 'opacity 0.2s', color: 'primary.main' }}
                 >
                   <TitleIcon fontSize="small" />
                 </IconButton>
@@ -500,35 +265,16 @@ const PageView = observer(() => {
 
       <Box>
         {authStore.canEdit && (
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: 1,
-              mb: 1,
-            }}
-          >
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mb: 1 }}>
             {isEditMode ? (
               <>
                 <Tooltip title="Сохранить">
-                  <IconButton
-                    size="small"
-                    onClick={handleSaveAndExit}
-                    sx={{
-                      color: 'primary.main',
-                    }}
-                  >
+                  <IconButton size="small" onClick={handleSaveAndExit} sx={{ color: 'primary.main' }}>
                     <SaveIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Отмена">
-                  <IconButton
-                    size="small"
-                    onClick={handleCancelEdit}
-                    sx={{
-                      color: 'text.primary',
-                    }}
-                  >
+                  <IconButton size="small" onClick={handleCancelEdit} sx={{ color: 'text.primary' }}>
                     <CloseIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
@@ -536,24 +282,12 @@ const PageView = observer(() => {
             ) : (
               <>
                 <Tooltip title="Редактировать содержимое">
-                  <IconButton
-                    size="small"
-                    onClick={handleEnableEditMode}
-                    sx={{
-                      color: 'primary.main',
-                    }}
-                  >
+                  <IconButton size="small" onClick={handleEnableEditMode} sx={{ color: 'primary.main' }}>
                     <EditIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Удалить">
-                  <IconButton
-                    size="small"
-                    onClick={handleDelete}
-                    sx={{
-                      color: 'error.main',
-                    }}
-                  >
+                  <IconButton size="small" onClick={handleDelete} sx={{ color: 'error.main' }}>
                     <DeleteIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
@@ -561,26 +295,47 @@ const PageView = observer(() => {
             )}
           </Box>
         )}
+
         {isEditMode ? (
-          <EditorContainer>
-            <div
+          <Box
+            sx={{
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1,
+              '& .mdxeditor': { minHeight: '400px' },
+              '& .mdxeditor-toolbar': { borderBottom: '1px solid', borderColor: 'divider', flexWrap: 'wrap' },
+            }}
+          >
+            <MDXEditor
+              key={page.id}
               ref={editorRef}
-              id="editorjs"
-              style={{
-                minHeight: '400px',
-              }}
+              markdown={content}
+              plugins={editorPlugins(originalContent)}
             />
-          </EditorContainer>
+          </Box>
         ) : (
           <Box
             sx={{
               minWidth: 0,
               overflowWrap: 'break-word',
               wordBreak: 'break-word',
-              '& *': { maxWidth: '100%' },
+              '& .mdxeditor': { padding: 0 },
+              '& .mdxeditor-root-contenteditable': { padding: 0 },
+              '& [class*="_codeMirrorToolbar"]': { display: 'none' },
             }}
           >
-            {renderContent()}
+            {content ? (
+              <MDXEditor
+                key={`view-${page.id}`}
+                markdown={content}
+                readOnly
+                plugins={viewPlugins}
+              />
+            ) : (
+              <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                Страница пуста. Нажмите "Редактировать" для добавления содержимого.
+              </Typography>
+            )}
           </Box>
         )}
       </Box>
@@ -589,8 +344,7 @@ const PageView = observer(() => {
         <DialogTitle>Удалить страницу?</DialogTitle>
         <DialogContent>
           <Typography>
-            Вы уверены, что хотите удалить страницу "{page.title}"? Это действие
-            нельзя отменить.
+            Вы уверены, что хотите удалить страницу "{page.title}"? Это действие нельзя отменить.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -605,4 +359,3 @@ const PageView = observer(() => {
 })
 
 export default PageView
-

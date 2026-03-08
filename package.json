@@ -9,17 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@editorjs/code": "^2.8.0",
-    "@editorjs/editorjs": "^2.27.2",
-    "@editorjs/header": "^2.7.3",
-    "@editorjs/image": "^2.8.1",
     "@editorjs/link": "^2.5.0",
-    "@editorjs/list": "^1.9.0",
-    "@editorjs/paragraph": "^2.10.2",
-    "@editorjs/quote": "^2.5.0",
-    "@editorjs/table": "^2.2.2",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
+    "@mdxeditor/editor": "^3.52.4",
     "@mui/icons-material": "^5.14.19",
     "@mui/material": "^5.14.20",
     "axios": "^1.6.2",

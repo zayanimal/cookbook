@@ -20,7 +20,7 @@ class PagesService {
   /**
    * Создать новую страницу в подразделе
    */
-  async createPage(subsectionId, title, content = { blocks: [] }) {
+  async createPage(subsectionId, title, content = '') {
     try {
       const response = await apiClient.post(
         `/subsections/${subsectionId}/pages`,

@@ -21,8 +21,8 @@ const PrivateRoute = observer(({ children }) => {
     }
   }, [authStore])
 
-  // Показываем загрузку, если идет инициализация авторизации или загрузка пользователя
-  if (authStore.loading || (authStore.isAuthenticated && !authStore.user)) {
+  // Показываем загрузку до завершения инициализации авторизации
+  if (!authStore.initialized || authStore.loading || (authStore.isAuthenticated && !authStore.user)) {
     return (
       <Box
         sx={{

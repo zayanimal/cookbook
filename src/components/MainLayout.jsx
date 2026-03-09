@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { observer } from 'mobx-react-lite'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useMatch } from 'react-router-dom'
+import { runInAction } from 'mobx'
 import { useStores } from '../hooks/useStores'
+import { slugify } from '../utils/slug'
 import {
   Box,
   Drawer,
@@ -53,10 +55,68 @@ const MainLayout = observer(() => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
+  const [pageNavigating, setPageNavigating] = useState(false)
+
+  const pageMatch = useMatch('/:sectionSlug/:subsectionSlug/:pageSlug')
+  const { sectionSlug, subsectionSlug, pageSlug } = pageMatch?.params ?? {}
 
   useEffect(() => {
     cookbookStore.loadSections()
-  }, []);
+  }, [])
+
+  // Синхронизация URL → store с защитой от мерцания
+  useEffect(() => {
+    if (!sectionSlug) {
+      cookbookStore.uiStore.clearSelection()
+      return
+    }
+
+    if (!cookbookStore.sectionsStore.loaded) return
+
+    let cancelled = false
+    setPageNavigating(true)
+
+    const doNavigate = async () => {
+      try {
+        const section = cookbookStore.sections.find(
+          (s) => slugify(s.title) === sectionSlug
+        )
+        if (!section || cancelled) return
+
+        if (!section.subsections || section.subsections.length === 0) {
+          await cookbookStore.loadSectionSubsections(section.id)
+          if (cancelled) return
+        }
+
+        const sub = section.subsections?.find(
+          (ss) => slugify(ss.title) === subsectionSlug
+        )
+        if (!sub || cancelled) return
+
+        if (!sub.pages || sub.pages.length === 0) {
+          await cookbookStore.loadSubsectionPages(section.id, sub.id)
+          if (cancelled) return
+        }
+
+        const page = sub.pages?.find((p) => slugify(p.title) === pageSlug)
+        if (!page || cancelled) return
+
+        runInAction(() => {
+          cookbookStore.uiStore.selectSection(section.id)
+          cookbookStore.uiStore.selectSubsection(sub.id)
+          cookbookStore.uiStore.selectPage(page.id)
+        })
+      } finally {
+        if (!cancelled) setPageNavigating(false)
+      }
+    }
+
+    doNavigate()
+    return () => {
+      cancelled = true
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionSlug, subsectionSlug, pageSlug, cookbookStore.sectionsStore.loaded]);
 
   useEffect(() => {
     cookbookStore.setSidebarOpen(!isMobile)
@@ -243,7 +303,7 @@ const MainLayout = observer(() => {
 
       <MainContent>
         <Toolbar />
-        {cookbookStore.loading ? (
+        {cookbookStore.loading || pageNavigating ? (
           <Box
             sx={{
               display: 'flex',

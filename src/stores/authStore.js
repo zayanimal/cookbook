@@ -17,6 +17,7 @@ class AuthStore {
   loading = false
   error = null
   userLoaded = false
+  initialized = false
   _fetchUserPromise = null
 
   constructor() {
@@ -50,12 +51,17 @@ class AuthStore {
           this.userLoaded = false
         })
         authService.clearToken()
+      } finally {
+        runInAction(() => {
+          this.initialized = true
+        })
       }
     } else {
       runInAction(() => {
         this.isAuthenticated = false
         this.loading = false
         this.userLoaded = false
+        this.initialized = true
       })
     }
   }

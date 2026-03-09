@@ -1,6 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { observer } from 'mobx-react-lite'
+import { useNavigate } from 'react-router-dom'
 import { useStores } from '../hooks/useStores'
+import { slugify } from '../utils/slug'
 import {
   List,
   ListItem,
@@ -41,8 +43,17 @@ const StyledListItem = styled(ListItem)(({ theme, selected }) => ({
 
 const SubsectionItem = observer(({ section, subsection, onClose }) => {
   const { cookbookStore, authStore } = useStores()
-  const [expanded, setExpanded] = useState(false)
+  const navigate = useNavigate()
+  const [expanded, setExpanded] = useState(
+    () => cookbookStore.selectedSubsectionId === subsection.id
+  )
   const [menuAnchor, setMenuAnchor] = useState(null)
+
+  useEffect(() => {
+    if (cookbookStore.selectedSubsectionId === subsection.id) {
+      setExpanded(true)
+    }
+  }, [cookbookStore.selectedSubsectionId, subsection.id])
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editTitle, setEditTitle] = useState(subsection.title)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -55,8 +66,6 @@ const SubsectionItem = observer(({ section, subsection, onClose }) => {
 
   const handleClick = (e) => {
     if (!e.target.closest('.MuiIconButton-root')) {
-      cookbookStore.selectSection(section.id)
-      cookbookStore.selectSubsection(section.id, subsection.id)
       setExpanded(!expanded)
     }
   }
@@ -82,9 +91,14 @@ const SubsectionItem = observer(({ section, subsection, onClose }) => {
           subsection.id,
           newPageTitle.trim()
         )
-        cookbookStore.selectPage(pageId)
         setAddPageDialogOpen(false)
         setNewPageTitle('')
+        const newPage = subsection.pages?.find((p) => p.id === pageId)
+        if (newPage) {
+          navigate(
+            `/${slugify(section.title)}/${slugify(subsection.title)}/${slugify(newPage.title)}`
+          )
+        }
         if (onClose) onClose()
       } catch (error) {
         alert('Ошибка создания страницы: ' + (error.message || 'Неизвестная ошибка'))
@@ -122,10 +136,10 @@ const SubsectionItem = observer(({ section, subsection, onClose }) => {
     }
   }
 
-  const handlePageClick = (pageId) => {
-    cookbookStore.selectSection(section.id)
-    cookbookStore.selectSubsection(section.id, subsection.id)
-    cookbookStore.selectPage(pageId)
+  const handlePageClick = (page) => {
+    navigate(
+      `/${slugify(section.title)}/${slugify(subsection.title)}/${slugify(page.title)}`
+    )
     if (onClose) onClose()
   }
 
@@ -170,7 +184,7 @@ const SubsectionItem = observer(({ section, subsection, onClose }) => {
                 key={page.id}
                 disablePadding
                 selected={isPageSelected}
-                onClick={() => handlePageClick(page.id)}
+                onClick={() => handlePageClick(page)}
               >
                 <ListItemButton sx={{ pl: 7, py: 0.5 }}>
                   <ListItemIcon sx={{ minWidth: 36 }}>
@@ -297,8 +311,16 @@ const SubsectionItem = observer(({ section, subsection, onClose }) => {
 
 const SectionItem = observer(({ section, onClose }) => {
   const { cookbookStore, authStore } = useStores()
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(
+    () => cookbookStore.selectedSectionId === section.id
+  )
   const [menuAnchor, setMenuAnchor] = useState(null)
+
+  useEffect(() => {
+    if (cookbookStore.selectedSectionId === section.id) {
+      setExpanded(true)
+    }
+  }, [cookbookStore.selectedSectionId, section.id])
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editTitle, setEditTitle] = useState(section.title)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -309,8 +331,11 @@ const SectionItem = observer(({ section, onClose }) => {
 
   const handleClick = (e) => {
     if (!e.target.closest('.MuiIconButton-root')) {
-      cookbookStore.selectSection(section.id)
-      setExpanded(!expanded)
+      const nextExpanded = !expanded
+      setExpanded(nextExpanded)
+      if (nextExpanded && (!section.subsections || section.subsections.length === 0)) {
+        cookbookStore.loadSectionSubsections(section.id)
+      }
     }
   }
 

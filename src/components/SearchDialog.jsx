@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { observer } from 'mobx-react-lite'
+import { useNavigate } from 'react-router-dom'
 import { useStores } from '../hooks/useStores'
+import { slugify } from '../utils/slug'
 import {
   Dialog,
   DialogTitle,
@@ -25,6 +27,7 @@ import FolderIcon from '@mui/icons-material/Folder'
  */
 const SearchDialog = observer(({ open, onClose }) => {
   const { cookbookStore } = useStores()
+  const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
 
@@ -181,13 +184,11 @@ const SearchDialog = observer(({ open, onClose }) => {
     }
   }, [open, cookbookStore])
 
-  const handleResultClick = (sectionId, subsectionId, pageId) => {
-    cookbookStore.selectSection(sectionId)
-    if (subsectionId) {
-      cookbookStore.selectSubsection(sectionId, subsectionId)
-    }
-    if (pageId) {
-      cookbookStore.selectPage(pageId)
+  const handleResultClick = (result) => {
+    if (result.pageId && result.sectionTitle && result.subsectionTitle && result.pageTitle) {
+      navigate(
+        `/${slugify(result.sectionTitle)}/${slugify(result.subsectionTitle)}/${slugify(result.pageTitle)}`
+      )
     }
     onClose()
   }
@@ -243,13 +244,7 @@ const SearchDialog = observer(({ open, onClose }) => {
                 {index > 0 && <Divider component="li" />}
                 <ListItem disablePadding>
                   <ListItemButton
-                    onClick={() =>
-                      handleResultClick(
-                        result.sectionId,
-                        result.subsectionId,
-                        result.pageId
-                      )
-                    }
+                    onClick={() => handleResultClick(result)}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'flex-start', width: '100%', gap: 2 }}>
                       <Box sx={{ mt: 0.5 }}>

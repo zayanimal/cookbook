@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { observer } from 'mobx-react-lite'
 import { useNavigate, useMatch } from 'react-router-dom'
 import { runInAction } from 'mobx'
@@ -56,6 +56,9 @@ const MainLayout = observer(() => {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
   const [pageNavigating, setPageNavigating] = useState(false)
+  const [headerVisible, setHeaderVisible] = useState(true)
+  const lastScrollY = useRef(0)
+  const mainContentRef = useRef(null)
 
   const pageMatch = useMatch('/:sectionSlug/:subsectionSlug/:pageSlug')
   const { sectionSlug, subsectionSlug, pageSlug } = pageMatch?.params ?? {}
@@ -145,6 +148,31 @@ const MainLayout = observer(() => {
     navigate('/login')
   }
 
+  // Автоскрытие шапки при скролле на мобильных
+  useEffect(() => {
+    if (!isMobile) {
+      setHeaderVisible(true)
+      return
+    }
+    const el = mainContentRef.current
+    if (!el) return
+
+    const handleScroll = () => {
+      const currentY = el.scrollTop
+      if (currentY < 60) {
+        setHeaderVisible(true)
+      } else if (currentY > lastScrollY.current) {
+        setHeaderVisible(false)
+      } else {
+        setHeaderVisible(true)
+      }
+      lastScrollY.current = currentY
+    }
+
+    el.addEventListener('scroll', handleScroll, { passive: true })
+    return () => el.removeEventListener('scroll', handleScroll)
+  }, [isMobile])
+
   // Обработка горячей клавиши для поиска (Ctrl+K / Cmd+K)
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -178,6 +206,8 @@ const MainLayout = observer(() => {
           zIndex: (theme) => theme.zIndex.drawer + 1,
           backgroundColor: theme.palette.primary.main,
           color: 'white',
+          transform: isMobile && !headerVisible ? 'translateY(-100%)' : 'translateY(0)',
+          transition: 'transform 0.3s ease',
         }}
       >
         <Toolbar sx={{ color: 'inherit' }}>
@@ -301,7 +331,7 @@ const MainLayout = observer(() => {
         )}
       </Box>
 
-      <MainContent>
+      <MainContent ref={mainContentRef}>
         <Toolbar />
         {cookbookStore.loading || pageNavigating ? (
           <Box

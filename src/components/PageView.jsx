@@ -27,8 +27,15 @@ import {
   InsertThematicBreak,
   InsertCodeBlock,
   Separator,
+  useCodeBlockEditorContext,
+  insertCodeBlock$,
+  usePublisher,
+  readOnly$,
 } from '@mdxeditor/editor'
+import { useCellValues } from '@mdxeditor/gurx'
 import '@mdxeditor/editor/style.css'
+import AccountTreeIcon from '@mui/icons-material/AccountTree'
+import MermaidDiagram from './MermaidDiagram'
 import {
   Box,
   Typography,
@@ -54,6 +61,62 @@ const CODE_BLOCK_LANGUAGES = {
   javascript: 'JavaScript',
   bash: 'Bash',
   java: 'Java',
+  mermaid: 'Mermaid',
+}
+
+const MermaidBlockEditor = ({ code }) => {
+  const { setCode } = useCodeBlockEditorContext()
+  const [readOnly] = useCellValues(readOnly$)
+  return (
+    <Box sx={{ p: 1 }}>
+      {!readOnly && (
+        <Box
+          component="textarea"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          spellCheck={false}
+          placeholder={'graph TD\n    A --> B\n    B --> C'}
+          sx={{
+            width: '100%',
+            minHeight: 120,
+            fontFamily: 'monospace',
+            fontSize: '0.85rem',
+            p: 1,
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+            resize: 'vertical',
+            boxSizing: 'border-box',
+            display: 'block',
+            mb: 1,
+            outline: 'none',
+            '&:focus': { borderColor: 'primary.main' },
+          }}
+        />
+      )}
+      <MermaidDiagram code={code} />
+    </Box>
+  )
+}
+
+const mermaidDescriptor = {
+  priority: 100,
+  match: (language) => language === 'mermaid',
+  Editor: MermaidBlockEditor,
+}
+
+const InsertMermaidDiagram = () => {
+  const insertCodeBlock = usePublisher(insertCodeBlock$)
+  return (
+    <Tooltip title="Вставить диаграмму Mermaid">
+      <IconButton
+        size="small"
+        onClick={() => insertCodeBlock({ language: 'mermaid', code: 'graph TD\n    A --> B' })}
+      >
+        <AccountTreeIcon fontSize="small" />
+      </IconButton>
+    </Tooltip>
+  )
 }
 
 const editorPlugins = (diffMarkdown) => [
@@ -63,7 +126,7 @@ const editorPlugins = (diffMarkdown) => [
   thematicBreakPlugin(),
   linkPlugin(),
   linkDialogPlugin(),
-  codeBlockPlugin({ defaultCodeBlockLanguage: 'javascript' }),
+  codeBlockPlugin({ defaultCodeBlockLanguage: 'javascript', codeBlockEditorDescriptors: [mermaidDescriptor] }),
   codeMirrorPlugin({ codeBlockLanguages: CODE_BLOCK_LANGUAGES, autoLoadLanguageSupport: true }),
   tablePlugin(),
   markdownShortcutPlugin(),
@@ -92,6 +155,7 @@ const editorPlugins = (diffMarkdown) => [
                   <InsertTable />
                   <InsertThematicBreak />
                   <InsertCodeBlock />
+                  <InsertMermaidDiagram />
                 </>
               ),
             },
@@ -108,7 +172,7 @@ const viewPlugins = [
   quotePlugin(),
   thematicBreakPlugin(),
   linkPlugin(),
-  codeBlockPlugin({ defaultCodeBlockLanguage: 'javascript' }),
+  codeBlockPlugin({ defaultCodeBlockLanguage: 'javascript', codeBlockEditorDescriptors: [mermaidDescriptor] }),
   codeMirrorPlugin({ codeBlockLanguages: CODE_BLOCK_LANGUAGES, autoLoadLanguageSupport: true }),
   tablePlugin(),
 ]

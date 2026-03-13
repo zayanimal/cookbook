@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cookbook — Системная аналитика</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --c-primary:       #EF8E2D;
+      --c-primary-dark:  #D1522A;
+      --c-primary-light: #f9a857;
+      --c-bg:            #FBF6EF;
+      --c-bg-card:       #ffffff;
+      --c-sidebar-bg:    #1c1917;
+      --c-sidebar-hover: #292524;
+      --c-sidebar-active:#292524;
+      --c-text:          #1c1917;
+      --c-text-muted:    #78716c;
+      --c-border:        #e7e5e4;
+      --c-code-bg:       #1e1e2e;
+      --c-code-text:     #cdd6f4;
+      --c-table-head:    #fef3e2;
+      --c-table-stripe:  #fdf8f3;
+      --c-tag-bg:        #fef3e2;
+      --c-tag-text:      #9a3412;
+      --sidebar-w:       272px;
+      --content-max:     860px;
+      --radius:          8px;
+      --shadow-sm:       0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+      --shadow-md:       0 4px 12px rgba(0,0,0,.10), 0 2px 4px rgba(0,0,0,.06);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--c-text);
+      background: var(--c-bg);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ────────────────────────────────────────────────── */
+    #sidebar {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: var(--sidebar-w);
+      background: var(--c-sidebar-bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 100;
+      border-right: 1px solid rgba(255,255,255,.05);
+    }
+
+    .sidebar-header {
+      padding: 24px 20px 16px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      flex-shrink: 0;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      margin-bottom: 6px;
+    }
+
+    .sidebar-logo-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--c-primary), var(--c-primary-dark));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 2px 8px rgba(239,142,45,.4);
+    }
+
+    .sidebar-logo-text {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fafaf9;
+      letter-spacing: -.3px;
+    }
+
+    .sidebar-subtitle {
+      font-size: 11px;
+      color: #a8a29e;
+      font-weight: 500;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    .sidebar-nav {
+      padding: 12px 10px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .sidebar-nav::-webkit-scrollbar { width: 4px; }
+    .sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+    .sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 4px; }
+
+    .nav-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #78716c;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      padding: 12px 10px 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      color: #a8a29e;
+      font-size: 13.5px;
+      font-weight: 400;
+      transition: background .15s, color .15s;
+      line-height: 1.4;
+    }
+
+    .nav-item:hover {
+      background: var(--c-sidebar-hover);
+      color: #fafaf9;
+    }
+
+    .nav-item.active {
+      background: rgba(239,142,45,.15);
+      color: var(--c-primary-light);
+      font-weight: 500;
+    }
+
+    .nav-item-num {
+      width: 20px; height: 20px;
+      border-radius: 5px;
+      background: rgba(255,255,255,.06);
+      color: #78716c;
+      font-size: 11px;
+      font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .nav-item.active .nav-item-num {
+      background: rgba(239,142,45,.25);
+      color: var(--c-primary-light);
+    }
+
+    .sidebar-footer {
+      padding: 14px 20px;
+      border-top: 1px solid rgba(255,255,255,.06);
+      font-size: 11.5px;
+      color: #57534e;
+      flex-shrink: 0;
+    }
+
+    /* ── Main ───────────────────────────────────────────────────── */
+    #main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* ── Top bar ────────────────────────────────────────────────── */
+    #topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(251,246,239,.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--c-border);
+      padding: 12px 48px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--c-text-muted);
+    }
+
+    .breadcrumb-sep { color: var(--c-border); }
+
+    .breadcrumb-current {
+      color: var(--c-text);
+      font-weight: 500;
+    }
+
+    .topbar-date {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--c-text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── Content area ───────────────────────────────────────────── */
+    #content {
+      padding: 48px 48px 80px;
+    }
+
+    .doc-section {
+      max-width: var(--content-max);
+      margin: 0 auto 80px;
+      animation: fadeIn .3s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    .doc-section:last-child { margin-bottom: 0; }
+
+    .section-divider {
+      border: none;
+      border-top: 1px solid var(--c-border);
+      max-width: var(--content-max);
+      margin: 0 auto 80px;
+    }
+
+    /* ── Markdown typography ────────────────────────────────────── */
+    .md h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--c-text);
+      letter-spacing: -.6px;
+      line-height: 1.25;
+      margin-bottom: 8px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--c-border);
+    }
+
+    .md h1::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 28px;
+      background: linear-gradient(180deg, var(--c-primary), var(--c-primary-dark));
+      border-radius: 2px;
+      margin-right: 12px;
+      vertical-align: middle;
+    }
+
+    .md h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--c-text);
+      letter-spacing: -.3px;
+      margin: 40px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--c-border);
+    }
+
+    .md h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--c-text);
+      margin: 28px 0 10px;
+    }
+
+    .md h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--c-text-muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin: 24px 0 8px;
+    }
+
+    .md p {
+      margin-bottom: 14px;
+      color: #44403c;
+    }
+
+    .md a {
+      color: var(--c-primary-dark);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(209,82,42,.3);
+      transition: border-color .15s;
+    }
+
+    .md a:hover { border-color: var(--c-primary-dark); }
+
+    .md ul, .md ol {
+      padding-left: 24px;
+      margin-bottom: 14px;
+    }
+
+    .md li { margin-bottom: 4px; color: #44403c; }
+
+    .md li p { margin-bottom: 4px; }
+
+    .md strong { font-weight: 600; color: var(--c-text); }
+
+    .md em { font-style: italic; color: #57534e; }
+
+    /* ── Blockquote ─────────────────────────────────────────────── */
+    .md blockquote {
+      border-left: 3px solid var(--c-primary);
+      margin: 20px 0;
+      padding: 12px 18px;
+      background: var(--c-table-head);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      color: #57534e;
+      font-size: 14px;
+    }
+
+    .md blockquote p { margin: 0; color: #57534e; }
+
+    /* ── Code ───────────────────────────────────────────────────── */
+    .md code {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      background: #f4f0ec;
+      color: var(--c-primary-dark);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #e7e0d8;
+    }
+
+    .md pre {
+      background: var(--c-code-bg);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      overflow-x: auto;
+      margin: 20px 0;
+      box-shadow: var(--shadow-md);
+      position: relative;
+    }
+
+    .md pre::before {
+      content: '';
+      position: absolute;
+      top: 12px; left: 16px;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #ff5f57;
+      box-shadow: 16px 0 0 #febc2e, 32px 0 0 #28c840;
+    }
+
+    .md pre code {
+      background: none;
+      color: var(--c-code-text);
+      padding: 0;
+      border: none;
+      font-size: 13px;
+      border-radius: 0;
+      display: block;
+      padding-top: 18px;
+    }
+
+    /* ── Tables ─────────────────────────────────────────────────── */
+    .md table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+      box-shadow: var(--shadow-sm);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .md thead {
+      background: var(--c-table-head);
+    }
+
+    .md thead th {
+      padding: 11px 14px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 13px;
+      color: #78350f;
+      border-bottom: 2px solid #fcd9a0;
+      white-space: nowrap;
+    }
+
+    .md tbody tr {
+      border-bottom: 1px solid var(--c-border);
+      transition: background .12s;
+    }
+
+    .md tbody tr:nth-child(even) { background: var(--c-table-stripe); }
+    .md tbody tr:hover { background: #fef3e2; }
+
+    .md tbody td {
+      padding: 10px 14px;
+      color: #44403c;
+      vertical-align: top;
+    }
+
+    .md tbody td code { font-size: 12px; }
+
+    /* ── Horizontal rule ────────────────────────────────────────── */
+    .md hr {
+      border: none;
+      border-top: 1px solid var(--c-border);
+      margin: 32px 0;
+    }
+
+    /* ── Section header card ────────────────────────────────────── */
+    .section-card {
+      background: var(--c-bg-card);
+      border: 1px solid var(--c-border);
+      border-radius: 12px;
+      padding: 32px 36px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* ── Index / TOC ────────────────────────────────────────────── */
+    .index-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 14px;
+      margin-top: 28px;
+    }
+
+    .index-card {
+      background: var(--c-bg-card);
+      border: 1px solid var(--c-border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: box-shadow .15s, border-color .15s, transform .12s;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .index-card:hover {
+      border-color: var(--c-primary);
+      box-shadow: 0 0 0 3px rgba(239,142,45,.12), var(--shadow-md);
+      transform: translateY(-1px);
+    }
+
+    .index-card-num {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--c-primary), var(--c-primary-dark));
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-family: 'JetBrains Mono', monospace;
+      box-shadow: 0 2px 6px rgba(239,142,45,.3);
+    }
+
+    .index-card-body { min-width: 0; }
+
+    .index-card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--c-text);
+      margin-bottom: 3px;
+    }
+
+    .index-card-desc {
+      font-size: 12.5px;
+      color: var(--c-text-muted);
+      line-height: 1.5;
+    }
+
+    /* ── Hero block ─────────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, #1c1917 0%, #292524 100%);
+      border-radius: 14px;
+      padding: 36px 40px;
+      color: #fafaf9;
+      margin-bottom: 32px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 220px; height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(239,142,45,.2) 0%, transparent 70%);
+    }
+
+    .hero-tag {
+      display: inline-block;
+      padding: 4px 10px;
+      background: rgba(239,142,45,.2);
+      color: var(--c-primary-light);
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .hero h1 {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -.6px;
+      margin-bottom: 10px;
+      color: #fafaf9;
+    }
+
+    .hero p {
+      font-size: 15px;
+      color: #a8a29e;
+      max-width: 540px;
+      line-height: 1.6;
+    }
+
+    .hero-meta {
+      display: flex;
+      gap: 20px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    .hero-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12.5px;
+      color: #78716c;
+    }
+
+    .hero-meta-item span {
+      font-weight: 600;
+      color: #a8a29e;
+    }
+
+    /* ── Badge pills ────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    .badge-orange { background: #fef3e2; color: #9a3412; }
+    .badge-green  { background: #f0fdf4; color: #166534; }
+    .badge-red    { background: #fef2f2; color: #991b1b; }
+    .badge-blue   { background: #eff6ff; color: #1e40af; }
+    .badge-gray   { background: #f5f5f4; color: #57534e; }
+
+    /* ── Scrollbar ──────────────────────────────────────────────── */
+    #main::-webkit-scrollbar { width: 6px; }
+    #main::-webkit-scrollbar-track { background: transparent; }
+    #main::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 3px; }
+
+    /* ── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      #sidebar { width: 220px; }
+      --sidebar-w: 220px;
+      #main { margin-left: 220px; }
+      #content { padding: 32px 24px 60px; }
+      #topbar { padding: 12px 24px; }
+    }
+
+    @media (max-width: 640px) {
+      #sidebar { display: none; }
+      #main { margin-left: 0; }
+    }
+
+    /* ── Print ──────────────────────────────────────────────────── */
+    @media print {
+      #sidebar, #topbar { display: none; }
+      #main { margin-left: 0; }
+      .doc-section { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ SIDEBAR ══════════════════════════════════════════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-header">
+    <a class="sidebar-logo" href="#top">
+      <div class="sidebar-logo-icon">📖</div>
+      <span class="sidebar-logo-text">Cookbook</span>
+    </a>
+    <div class="sidebar-subtitle">Системная аналитика</div>
+  </div>
+
+  <div class="sidebar-nav" id="sidebarNav">
+    <div class="nav-section-label">Документы</div>
+    <a class="nav-item active" href="#doc-index" data-doc="index">
+      <span class="nav-item-num">00</span>Обзор
+    </a>
+    <a class="nav-item" href="#doc-01" data-doc="01">
+      <span class="nav-item-num">01</span>Проект
+    </a>
+    <a class="nav-item" href="#doc-02" data-doc="02">
+      <span class="nav-item-num">02</span>Доменная модель
+    </a>
+    <a class="nav-item" href="#doc-03" data-doc="03">
+      <span class="nav-item-num">03</span>Архитектура
+    </a>
+    <a class="nav-item" href="#doc-04" data-doc="04">
+      <span class="nav-item-num">04</span>Компоненты
+    </a>
+    <a class="nav-item" href="#doc-05" data-doc="05">
+      <span class="nav-item-num">05</span>Сторы (MobX)
+    </a>
+    <a class="nav-item" href="#doc-06" data-doc="06">
+      <span class="nav-item-num">06</span>Сервисы / API
+    </a>
+    <a class="nav-item" href="#doc-07" data-doc="07">
+      <span class="nav-item-num">07</span>Потоки данных
+    </a>
+    <a class="nav-item" href="#doc-08" data-doc="08">
+      <span class="nav-item-num">08</span>Анализ SOLID
+    </a>
+    <a class="nav-item" href="#doc-09" data-doc="09">
+      <span class="nav-item-num">09</span>Рекомендации
+    </a>
+  </div>
+
+  <div class="sidebar-footer">
+    v1.0.0 &nbsp;·&nbsp; 2026-03-12
+  </div>
+</nav>
+
+<!-- ═══ MAIN ══════════════════════════════════════════════════════ -->
+<div id="main">
+
+  <div id="topbar">
+    <div class="breadcrumb">
+      <span>Cookbook</span>
+      <span class="breadcrumb-sep">/</span>
+      <span class="breadcrumb-current" id="topbarTitle">Обзор</span>
+    </div>
+    <span class="topbar-date">2026-03-12</span>
+  </div>
+
+  <div id="content">
+
+    <!-- ── 00 Index ─────────────────────────────────────────────── -->
+    <div class="doc-section" id="doc-index">
+      <div class="hero">
+        <div class="hero-tag">Системная аналитика</div>
+        <h1>Cookbook</h1>
+        <p>Техническая документация по архитектуре, компонентам, потокам данных и оценке принципов SOLID для SPA-приложения Cookbook.</p>
+        <div class="hero-meta">
+          <div class="hero-meta-item">Версия: <span>1.0.0</span></div>
+          <div class="hero-meta-item">Стек: <span>React 18 + MobX + Material UI</span></div>
+          <div class="hero-meta-item">Документов: <span>9</span></div>
+        </div>
+      </div>
+
+      <div class="index-grid">
+        <a class="index-card" href="#doc-01">
+          <div class="index-card-num">01</div>
+          <div class="index-card-body">
+            <div class="index-card-title">Обзор проекта</div>
+            <div class="index-card-desc">Назначение, функциональные требования, технологический стек, ролевая модель</div>
+          </div>
+        </a>
+        <a class="index-card" href="#doc-02">
+          <div class="index-card-num">02</div>
+          <div class="index-card-body">
+            <div class="index-card-title">Доменная модель</div>
+            <div class="index-card-desc">Сущности, атрибуты, иерархия контента, URL-адресация</div>
+          </div>
+        </a>
+        <a class="index-card" href="#doc-03">
+          <div class="index-card-num">03</div>
+          <div class="index-card-body">
+            <div class="index-card-title">Архитектура</div>
+            <div class="index-card-desc">Слои, структура файлов, паттерны, роутинг, PWA</div>
+          </div>
+        </a>
+        <a class="index-card" href="#doc-04">
+          <div class="index-card-num">04</div>
+          <div class="index-card-body">
+            <div class="index-card-title">Компоненты</div>
+            <div class="index-card-desc">Карта компонентов, ответственности, зависимости</div>
+          </div>
+        </a>
+        <a class="index-card" href="#doc-05">
+          <div class="index-card-num">05</div>
+          <div class="index-card-body">
+            <div class="index-card-title">Управление состоянием</div>
+            <div class="index-card-desc">MobX сторы: состояние, computed, методы, зависимости</div>
+          </div>
+        </a>
+        <a class="index-card" href="#doc-06">
+          <div class="index-card-num">06</div>
+          <div class="index-card-body">
+            <div class="index-card-title">Сервисный слой</div>
+            <div class="index-card-desc">API-клиент, сервисы, mock-система, форматы ответов</div>
+          </div>
+        </a>
+        <a class="index-card" href="#doc-07">
+          <div class="index-card-num">07</div>
+          <div class="index-card-body">
+            <div class="index-card-title">Потоки данных</div>
+            <div class="index-card-desc">Аутентификация, навигация, редактирование, поиск, логаут</div>
+          </div>
+        </a>
+        <a class="index-card" href="#doc-08">
+          <div class="index-card-num">08</div>
+          <div class="index-card-body">
+            <div class="index-card-title">Анализ SOLID</div>
+            <div class="index-card-desc">Оценка каждого принципа с примерами соблюдения и нарушений</div>
+          </div>
+        </a>
+        <a class="index-card" href="#doc-09">
+          <div class="index-card-num">09</div>
+          <div class="index-card-body">
+            <div class="index-card-title">Рекомендации</div>
+            <div class="index-card-desc">11 рекомендаций с приоритетами и связью с принципами SOLID</div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <hr class="section-divider" />
+
+    <!-- ── Markdown sections ─────────────────────────────────────── -->
+    <div class="doc-section section-card md" id="doc-01"></div>
+    <hr class="section-divider" />
+    <div class="doc-section section-card md" id="doc-02"></div>
+    <hr class="section-divider" />
+    <div class="doc-section section-card md" id="doc-03"></div>
+    <hr class="section-divider" />
+    <div class="doc-section section-card md" id="doc-04"></div>
+    <hr class="section-divider" />
+    <div class="doc-section section-card md" id="doc-05"></div>
+    <hr class="section-divider" />
+    <div class="doc-section section-card md" id="doc-06"></div>
+    <hr class="section-divider" />
+    <div class="doc-section section-card md" id="doc-07"></div>
+    <hr class="section-divider" />
+    <div class="doc-section section-card md" id="doc-08"></div>
+    <hr class="section-divider" />
+    <div class="doc-section section-card md" id="doc-09"></div>
+
+  </div>
+</div>
+
+<!-- ═══ Markdown content ═════════════════════════════════════════ -->
+
+<script type="text/markdown" id="md-01">
+# 1. Обзор проекта
+
+## 1.1 Назначение
+
+**Cookbook** — веб-приложение для хранения и редактирования технической документации по инженерным системам дома. Предназначено для использования в частной сети (home engineering).
+
+## 1.2 Функциональные требования
+
+| ID | Требование |
+|----|------------|
+| FR-01 | Пользователь может авторизоваться по логину и паролю |
+| FR-02 | Авторизованный пользователь просматривает иерархию: Раздел → Подраздел → Страница |
+| FR-03 | Страница содержит контент в формате Markdown |
+| FR-04 | Администратор может создавать, редактировать и удалять разделы, подразделы и страницы |
+| FR-05 | Клиент имеет доступ только на чтение |
+| FR-06 | Полнотекстовый поиск по заголовкам и содержимому страниц (Ctrl+K) |
+| FR-07 | Поддержка диаграмм Mermaid внутри страниц |
+| FR-08 | Приложение работает как PWA (offline-режим) |
+| FR-09 | Боковая панель навигации изменяется по ширине (drag-resize) |
+| FR-10 | URL отражает текущую выбранную страницу (deep linking) |
+
+## 1.3 Нефункциональные требования
+
+| ID | Требование |
+|----|------------|
+| NFR-01 | Адаптивная вёрстка: desktop (md+) и mobile |
+| NFR-02 | Ленивая загрузка подразделов и страниц |
+| NFR-03 | Персистентное хранение ширины сайдбара (localStorage) |
+| NFR-04 | Токен сессии хранится в защищённых cookie (SameSite=strict, срок 7 дней) |
+| NFR-05 | Поддержка работы без backend через mock API (VITE_USE_MOCKS) |
+
+## 1.4 Технологический стек
+
+### Frontend
+
+| Технология | Версия | Роль |
+|------------|--------|------|
+| React | 18.2.0 | UI-фреймворк |
+| React Router DOM | 7.12.0 | Клиентский роутинг |
+| MobX | 6.10.0 | Управление состоянием |
+| MobX React Lite | 4.0.0 | Интеграция MobX с React |
+| Material UI | 5.14.20 | UI-компоненты |
+| MDXEditor | 3.52.4 | Markdown-редактор |
+| Mermaid | 11.13.0 | Рендеринг диаграмм |
+| Axios | 1.6.2 | HTTP-клиент |
+| js-cookie | 3.0.5 | Работа с cookie |
+
+### Сборка и инфраструктура
+
+| Технология | Версия | Роль |
+|------------|--------|------|
+| Vite | 5.0.8 | Сборщик, dev-сервер |
+| vite-plugin-pwa | 1.2.0 | PWA, service worker |
+| Docker | — | Контейнеризация |
+
+## 1.5 Конфигурация окружения
+
+```
+VITE_USE_MOCKS=false
+VITE_API_BASE_URL=http://cookbook:9000/api
+```
+
+## 1.6 Ролевая модель
+
+| Роль | Просмотр | Редактирование | Создание | Удаление |
+|------|----------|----------------|----------|----------|
+| `admin` | Да | Да | Да | Да |
+| `client` | Да | Нет | Нет | Нет |
+
+## 1.7 Тестовые учётные записи (mock-режим)
+
+| Логин | Пароль | Роль |
+|-------|--------|------|
+| `admin` | `admin123` | Администратор |
+| `client` | `client123` | Клиент |
+</script>
+
+<script type="text/markdown" id="md-02">
+# 2. Доменная модель
+
+## 2.1 Сущности и атрибуты
+
+### User (Пользователь)
+
+| Атрибут | Тип | Обязательный | Описание |
+|---------|-----|:---:|----------|
+| `id` | string | Да | Уникальный идентификатор |
+| `username` | string | Да | Логин для входа |
+| `role` | `admin` / `client` | Да | Роль пользователя |
+| `name` | string | Нет | Отображаемое имя |
+
+---
+
+### Section (Раздел)
+
+| Атрибут | Тип | Обязательный | Описание |
+|---------|-----|:---:|----------|
+| `id` | string | Да | Уникальный идентификатор |
+| `title` | string | Да | Название раздела |
+| `subsections` | `Subsection[]` | Нет | Вложенные подразделы (lazy-load) |
+
+---
+
+### Subsection (Подраздел)
+
+| Атрибут | Тип | Обязательный | Описание |
+|---------|-----|:---:|----------|
+| `id` | string | Да | Уникальный идентификатор |
+| `title` | string | Да | Название подраздела |
+| `pages` | `Page[]` | Нет | Вложенные страницы (lazy-load) |
+
+---
+
+### Page (Страница)
+
+| Атрибут | Тип | Обязательный | Описание |
+|---------|-----|:---:|----------|
+| `id` | string | Да | Уникальный идентификатор |
+| `title` | string | Да | Заголовок страницы |
+| `content` | string | Да | Содержимое в формате Markdown |
+| `createdAt` | ISO 8601 | Да | Дата создания |
+| `updatedAt` | ISO 8601 | Да | Дата последнего изменения |
+
+---
+
+## 2.2 Иерархия контента
+
+Контент организован в три уровня:
+
+```
+Раздел (Section)
+└── Подраздел (Subsection)
+    └── Страница (Page)
+        └── Контент: Markdown
+            ├── Заголовки, списки, таблицы
+            ├── Блоки кода с подсветкой
+            └── Диаграммы Mermaid
+```
+
+## 2.3 Формат идентификаторов
+
+В mock API идентификаторы строятся по составному принципу:
+
+| Уровень | Формат | Пример |
+|---------|--------|--------|
+| Section | `{n}` | `"1"`, `"2"` |
+| Subsection | `{sectionId}-{n}` | `"1-1"`, `"1-2"` |
+| Page | `{sectionId}-{subsectionId}-{n}` | `"1-1-1"` |
+
+> Реальный backend может использовать UUID или любой другой формат, так как фронтенд не зависит от структуры ID.
+
+## 2.4 URL-адресация (slug)
+
+Навигация реализована через человекочитаемые URL на основе транслитерации:
+
+```
+/:sectionSlug/:subsectionSlug/:pageSlug
+
+Пример:
+/otoplenie/kotel-i-radiatory/obshhaya-informaciya
+```
+
+> Slug генерируется функцией `src/utils/slug.js` и не хранится в БД — вычисляется на лету из `title`.
+</script>
+
+<script type="text/markdown" id="md-03">
+# 3. Архитектура приложения
+
+## 3.1 Общая схема слоёв
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   PRESENTATION                      │
+│   React-компоненты (components/)                    │
+│   Отображение, пользовательский ввод, навигация     │
+└──────────────────────┬──────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────┐
+│               STATE MANAGEMENT                      │
+│   MobX-сторы (stores/)                              │
+│   Бизнес-состояние, вычисляемые свойства            │
+└──────────────────────┬──────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────┐
+│                 SERVICE LAYER                       │
+│   Сервисы (services/)                               │
+│   HTTP-запросы, трансформация данных                │
+└──────────────────────┬──────────────────────────────┘
+                       │
+┌──────────────────────▼──────────────────────────────┐
+│                  API CLIENT                         │
+│   api.js (axios + interceptors)                     │
+│   Или mocks.js (in-memory, для разработки)          │
+└─────────────────────────────────────────────────────┘
+```
+
+## 3.2 Паттерны, применённые в архитектуре
+
+### Facade (Фасад)
+`cookbookStore` — фасад над `sectionsStore`, `pagesStore` и `uiStore`. Компоненты работают только с `cookbookStore`, не зная о внутреннем разделении.
+
+### Repository (Репозиторий)
+Каждый сервис инкапсулирует логику работы с конкретным ресурсом API. Сторы не знают об URL, заголовках и транспорте.
+
+### Observer (Наблюдатель)
+MobX реализует паттерн Observer: `observable`-состояние → реакции компонентов-`observer`. Компоненты перерисовываются только при изменении тех данных, которые они читают.
+
+### Strategy (Стратегия)
+`api.js` выбирает стратегию выполнения запроса — реальный `axios` или `mocks.js` — в зависимости от переменной окружения `VITE_USE_MOCKS`.
+
+## 3.3 Маршрутизация
+
+| Путь | Компонент |
+|------|-----------|
+| `/login` | `LoginPage` |
+| `/` | `PrivateRoute` → `MainLayout` |
+| `/:sectionSlug` | `MainLayout` (раздел выбран) |
+| `/:sectionSlug/:subsectionSlug/:pageSlug` | `MainLayout` (страница открыта) |
+
+## 3.4 Конфигурация сборки
+
+### PWA (vite-plugin-pwa)
+- Тип регистрации: `autoUpdate`
+- Workbox precache всех JS/CSS/HTML/PNG/SVG
+- Лимит кешируемого файла: **4 МБ** (поднят с 2 МБ из-за Mermaid)
+- Манифест: тема `#e67e22`, standalone-режим
+
+### Docker
+`Dockerfile` и `start-static-app.sh` для деплоя приложения как статики.
+</script>
+
+<script type="text/markdown" id="md-04">
+# 4. Компоненты (Presentation Layer)
+
+## 4.1 Карта компонентов
+
+```
+App
+├── LoginPage
+└── PrivateRoute
+    └── MainLayout
+        ├── AppBar
+        ├── ResizeHandle
+        ├── Sidebar
+        │   ├── SectionItem
+        │   │   └── SubsectionItem
+        │   │       └── PageItem
+        │   └── [Диалоги CRUD]
+        ├── PageView
+        │   ├── MDXEditor (edit mode)
+        │   ├── MDXEditor readOnly (view mode)
+        │   │   └── MermaidBlockEditor → MermaidDiagram
+        │   └── [Диалог удаления]
+        ├── EmptyState
+        └── SearchDialog
+```
+
+## 4.2 MainLayout
+
+**Ответственность:** корневая оболочка авторизованного приложения.
+
+| Функция | Описание |
+|---------|----------|
+| Шапка (AppBar) | Название, кнопка поиска (Ctrl+K), имя пользователя, выход |
+| Сайдбар | Постоянный на desktop, временный на mobile |
+| ResizeHandle | Перетаскивание для изменения ширины сайдбара |
+| URL-синхронизация | `useMatch` → парсинг slug → выбор страницы в сторе |
+| Ошибки | Snackbar уведомление из `uiStore.error` |
+
+## 4.3 Sidebar
+
+**Ответственность:** навигационное дерево с поддержкой CRUD.
+
+| Функция | Описание |
+|---------|----------|
+| Дерево навигации | Разделы → Подразделы → Страницы, expand/collapse |
+| Ленивая загрузка | При первом раскрытии |
+| Контекстное меню | Редактировать / Удалить (только `admin`) |
+| Создание | Диалоги создания раздела, подраздела, страницы |
+
+## 4.4 PageView
+
+**Ответственность:** просмотр и редактирование содержимого страницы.
+
+| Плагин MDXEditor | Назначение |
+|-----------------|------------|
+| `headingsPlugin` | H1–H6 |
+| `listsPlugin` | Маркированные и нумерованные списки |
+| `tablePlugin` | Таблицы |
+| `codeBlockPlugin` | Блоки кода, дескриптор Mermaid |
+| `codeMirrorPlugin` | Подсветка (JS, Bash, Java) |
+| `diffSourcePlugin` | Rich-text / source / diff режимы |
+| `toolbarPlugin` | Тулбар с форматированием |
+
+## 4.5 SearchDialog
+
+**Алгоритм поиска (по приоритету):**
+
+1. Заголовок страницы
+2. Содержимое страницы
+3. Название подраздела
+4. Название раздела
+
+Результаты дедуплицируются по `pageId` и сортируются по приоритету. Каждый содержит сниппет совпадения.
+
+## 4.6 EmptyState
+
+| Состояние | Отображение |
+|-----------|-------------|
+| Нет выбранной страницы | «Выберите страницу из меню слева» |
+| Подраздел без страниц | «Подраздел пуст. Создайте первую страницу» |
+| Подраздел со страницами | Список страниц для быстрого перехода |
+</script>
+
+<script type="text/markdown" id="md-05">
+# 5. Управление состоянием (MobX Stores)
+
+## 5.1 Схема зависимостей сторов
+
+```
+              ┌─────────────────┐
+              │  cookbookStore  │  ← Фасад
+              └────────┬────────┘
+                       │
+     ┌─────────────────┼──────────────┐
+     ▼                 ▼              ▼
+┌──────────────┐ ┌───────────┐ ┌──────────┐
+│sectionsStore │ │pagesStore │ │ uiStore  │
+└──────────────┘ └─────┬─────┘ └──────────┘
+                       │ ссылка на
+              ┌────────▼────────┐
+              │  sectionsStore  │
+              └─────────────────┘
+
+┌──────────────┐
+│  authStore   │  ← независимый
+└──────────────┘
+```
+
+## 5.2 authStore
+
+### Состояние
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `user` | `object / null` | Данные пользователя |
+| `token` | `string / null` | JWT-токен |
+| `isAuthenticated` | `boolean` | Флаг авторизации |
+| `loading` | `boolean` | Выполняется запрос |
+| `error` | `string / null` | Сообщение об ошибке |
+| `initialized` | `boolean` | Инициализация завершена |
+
+### Computed-свойства
+
+| Свойство | Значение |
+|----------|----------|
+| `isAdmin` | `user.role === 'admin'` |
+| `canEdit` | `isAdmin` |
+| `canAdd` | `isAdmin` |
+
+## 5.3 sectionsStore
+
+Хранит дерево разделов. Поддерживает ленивую загрузку подразделов и страниц:
+
+- `loadSectionSubsections(sectionId)` — загружает подразделы при раскрытии
+- `loadSubsectionPages(sectionId, subsectionId)` — загружает страницы при раскрытии
+
+## 5.4 pagesStore
+
+Не хранит собственный массив — страницы хранятся внутри объектов `Subsection` в `sectionsStore`. После каждой мутации обновляет `sectionsStore` через прямую ссылку.
+
+## 5.5 uiStore
+
+| Поле | Описание |
+|------|----------|
+| `selectedSectionId` | ID выбранного раздела |
+| `selectedSubsectionId` | ID выбранного подраздела |
+| `selectedPageId` | ID выбранной страницы |
+| `sidebarOpen` | Открытость сайдбара |
+| `sidebarWidth` | Ширина сайдбара [200–600 px], персистируется в `localStorage` |
+| `error` | Ошибка для Snackbar |
+
+## 5.6 cookbookStore (Фасад)
+
+Объединяет все сторы. Компоненты вызывают методы `cookbookStore`, не зная о внутреннем разделении состояния.
+
+| Метод | Делегирует в |
+|-------|-------------|
+| `loadSections()` | `sectionsStore` |
+| `selectPage(...)` | `uiStore` + `sectionsStore` |
+| `updatePage(...)` | `pagesStore` |
+| `deletePage(...)` | `pagesStore` + `uiStore` |
+| `getSelectedPage()` | `sectionsStore` + `uiStore` |
+</script>
+
+<script type="text/markdown" id="md-06">
+# 6. Сервисный слой
+
+## 6.1 Обзор
+
+```
+stores/ → вызывают → services/ → используют → api.js
+```
+
+Каждый сервис работает только с одним ресурсом API и возвращает нормализованные данные (не сырой `AxiosResponse`).
+
+## 6.2 api.js — HTTP-клиент
+
+| Параметр | Значение |
+|----------|----------|
+| `baseURL` | `VITE_API_BASE_URL` из `.env` |
+| `timeout` | 10 000 мс |
+| `withCredentials` | `true` |
+
+### Request-интерцептор
+Добавляет к каждому запросу: `Authorization: Bearer <token_from_cookie>`
+
+### Response-интерцептор
+
+| Условие | Действие |
+|---------|---------|
+| HTTP 401 | `clearToken()`, пользователь разлогинивается |
+| `response.data.error` | Пробрасывает сообщение ошибки из API |
+| Нет `response` | Пробрасывает `error.message` |
+
+### Mock-режим
+При `VITE_USE_MOCKS=true` вместо Axios вызывается `getMockData()` из `mocks.js` с задержкой 300 мс.
+
+## 6.3 Сервисы
+
+| Сервис | Ресурс | Методы |
+|--------|--------|--------|
+| `authService` | `/auth/*` | `login`, `logout`, `getCurrentUser`, `getToken`, `clearToken` |
+| `sectionsService` | `/sections` | CRUD разделов |
+| `subsectionsService` | `/sections/:id/subsections` | CRUD подразделов |
+| `pagesService` | `/pages`, `/subsections/:id/pages` | CRUD страниц |
+
+## 6.4 Mock API (mocks.js)
+
+Полная имитация REST API без бэкенда. Данные хранятся in-memory из статических JSON-файлов в `mocks/`.
+
+Поддерживаются все CRUD-операции для всех ресурсов. Mock-токены инвалидируются при logout через `Set` (blacklist).
+
+## 6.5 Формат ответов API
+
+### Успех
+```json
+{ "data": { ... }, "success": true }
+```
+
+### Ошибка
+```json
+{ "error": "Описание ошибки", "success": false }
+```
+
+| Код | Значение |
+|-----|----------|
+| 200 | Успешно |
+| 400 | Неверный запрос |
+| 401 | Не авторизован |
+| 403 | Доступ запрещён |
+| 404 | Ресурс не найден |
+</script>
+
+<script type="text/markdown" id="md-07">
+# 7. Потоки данных
+
+## 7.1 Инициализация приложения
+
+```
+Браузер открывает приложение
+        │
+        ▼
+PrivateRoute: authStore.initialized == false → Spinner
+        │
+        ▼
+authStore.initializeAuth()
+  ├── Токен в cookie → isAuthenticated = true → GET /auth/me
+  └── Нет токена / 401 → isAuthenticated = false
+        │
+        ▼
+authStore.initialized = true
+        │
+  ┌─────┴──────┐
+  Да → MainLayout    Нет → /login
+```
+
+## 7.2 Аутентификация
+
+```
+LoginPage → authStore.login(username, password)
+         → POST /auth/login
+         ← { token, user }
+         → cookie: auth_token (7 дней)
+         → authStore: isAuthenticated = true
+         → navigate('/')
+```
+
+## 7.3 Навигация по контенту
+
+```
+URL: /:sectionSlug/:subsectionSlug/:pageSlug
+        │
+        ▼
+Найти section по slug → загрузить subsections (lazy)
+        │
+Найти subsection → загрузить pages (lazy)
+        │
+Найти page → uiStore.selectPage(id)
+        │
+observer-компоненты перерисовываются:
+  Sidebar подсвечивает активную страницу
+  PageView отображает page.content
+```
+
+## 7.4 Редактирование страницы
+
+```
+Edit → isEditMode = true
+     → пользователь редактирует markdown
+     → Save → editorRef.getMarkdown()
+     → cookbookStore.updatePage(...)
+     → PUT /pages/:pageId
+     → runInAction: subsection.pages[i] обновлён
+     → observer: PageView перерисован
+     → isEditMode = false
+```
+
+## 7.5 Поиск (Ctrl+K)
+
+```
+SearchDialog → performSearch(query):
+  for each section.subsection.page:
+    match(title)     → приоритет 1
+    match(content)   → приоритет 2
+    match(subsection)→ приоритет 3
+    match(section)   → приоритет 4
+  deduplicate → sort → return results[]
+        │
+  Клик по результату → navigate(url)
+```
+
+## 7.6 Выход
+
+```
+Logout → authStore.logout()
+       → POST /auth/logout
+       → clearToken() (удаляет cookie)
+       → isAuthenticated = false
+       → navigate('/login')
+```
+</script>
+
+<script type="text/markdown" id="md-08">
+# 8. Анализ принципов SOLID
+
+## 8.1 S — Single Responsibility
+
+> Каждый модуль должен иметь только одну причину для изменения.
+
+### ✅ Соблюдается
+
+| Модуль | Единственная ответственность |
+|--------|------------------------------|
+| `authService.js` | HTTP-запросы к `/auth/*` и работа с cookie |
+| `sectionsService.js` | HTTP-запросы к ресурсу `sections` |
+| `uiStore.js` | UI-состояние (выбор, сайдбар, ошибки) |
+| `slug.js` | Транслитерация строки в URL-slug |
+| `MermaidDiagram.jsx` | Рендеринг Mermaid SVG |
+| `PrivateRoute.jsx` | Защита маршрута |
+
+### ❌ Нарушения
+
+| Модуль | Проблема |
+|--------|---------|
+| `MainLayout.jsx` | Оболочка + URL-синхронизация + keyboard shortcuts + scroll + resize (358 строк) |
+| `Sidebar.jsx` | Навигация + CRUD-диалоги + контекстное меню (635 строк) |
+| `PageView.jsx` | Редактор + просмотр + заголовок + удаление (432 строки) |
+| `SearchDialog.jsx` | UI-компонент + алгоритм ранжирования результатов |
+
+---
+
+## 8.2 O — Open/Closed
+
+> Открыты для расширения, закрыты для изменения.
+
+### ✅ Соблюдается
+
+**`codeBlockPlugin` с `codeBlockEditorDescriptors`:**
+Поддержка Mermaid добавлена без изменения ядра плагина.
+
+```js
+const mermaidDescriptor = {
+  priority: 100,
+  match: (language) => language === 'mermaid',
+  Editor: MermaidBlockEditor,
+}
+```
+
+**`api.js` + `mocks.js`:**
+Переключение между реальным API и mock происходит через переменную окружения.
+
+### ❌ Нарушения
+
+**`SearchDialog`** — новый тип сущности требует изменения алгоритма поиска внутри компонента.
+
+---
+
+## 8.3 L — Liskov Substitution
+
+> Объекты должны быть заменяемы на экземпляры подтипов без нарушения корректности.
+
+### ✅ Соблюдается
+
+`mocks.js` полностью заменяет реальный API — одинаковый контракт (метод, URL, данные → ответ).
+
+### ❌ Нарушения
+
+`pagesStore` напрямую мутирует `sectionsStore.sections[i].subsections[j].pages`, зная о внутренней структуре. При изменении представления в `sectionsStore` связь ломается.
+
+---
+
+## 8.4 I — Interface Segregation
+
+> Клиенты не должны зависеть от методов, которые они не используют.
+
+### ✅ Соблюдается
+
+Компоненты запрашивают только нужные сторы. Computed-свойства `canEdit`/`canAdd` скрывают ролевую логику.
+
+### ❌ Нарушения
+
+`cookbookStore`-фасад предоставляет единый широкий интерфейс. Компоненты получают доступ ко всем методам, используя лишь малую их часть.
+
+---
+
+## 8.5 D — Dependency Inversion
+
+> Модули верхнего уровня не должны зависеть от нижних. Оба — от абстракций.
+
+### ✅ Соблюдается
+
+Сторы вызывают сервисы (абстракции), не зная об Axios. Компоненты получают сторы через React Context (`useStores()`).
+
+### ❌ Нарушения
+
+`pagesStore` напрямую импортирует экземпляр `sectionsStore`. `api.js` импортирует `authService` — создаёт связанность на одном уровне слоя.
+
+---
+
+## 8.6 Сводная оценка
+
+| Принцип | Оценка | Статус |
+|---------|--------|--------|
+| **S** — Single Responsibility | Частично | `MainLayout`, `Sidebar`, `PageView` перегружены |
+| **O** — Open/Closed | Хорошо | Дескрипторы и mock-стратегия |
+| **L** — Liskov Substitution | Хорошо | Нарушение в `pagesStore` |
+| **I** — Interface Segregation | Частично | Широкий интерфейс `cookbookStore` |
+| **D** — Dependency Inversion | Хорошо | Нарушение в `pagesStore` и `api.js` |
+</script>
+
+<script type="text/markdown" id="md-09">
+# 9. Рекомендации
+
+## 9.1 Высокий приоритет
+
+### R-01: Разбить `MainLayout.jsx` на хуки
+
+```
+MainLayout.jsx               → только рендер оболочки
+hooks/useUrlSync.js          → синхронизация URL со стором
+hooks/useKeyboardShortcuts.js → Ctrl+K и прочие shortcuts
+hooks/useScrollHeader.js     → авто-скрытие header
+```
+
+---
+
+### R-02: Разбить `Sidebar.jsx` на компоненты
+
+```
+Sidebar.jsx            → только дерево навигации
+SectionItem.jsx        → компонент раздела
+SubsectionItem.jsx     → компонент подраздела
+CreateEntityDialog.jsx → универсальный диалог создания
+```
+
+---
+
+### R-03: Разбить `PageView.jsx` на компоненты
+
+```
+PageView.jsx    → координация состояния
+PageEditor.jsx  → MDXEditor в режиме редактирования
+PageReader.jsx  → MDXEditor readOnly
+PageTitle.jsx   → inline-редактирование заголовка
+```
+
+---
+
+### R-04: Вынести алгоритм поиска из `SearchDialog`
+
+```js
+// utils/search.js
+export function searchContent(sections, query) { ... }
+```
+
+Компонент вызывает функцию, не зная алгоритма — соблюдение SRP и OCP.
+
+---
+
+## 9.2 Средний приоритет
+
+### R-05: Убрать прямую связь `pagesStore → sectionsStore`
+
+```js
+// sectionsStore.js
+updatePageInTree(sectionId, subsectionId, pageId, updates) {
+  runInAction(() => {
+    const page = this.findPage(sectionId, subsectionId, pageId)
+    Object.assign(page, updates)
+  })
+}
+```
+
+---
+
+### R-06: Инверсия зависимости в `api.js`
+
+```js
+// передавать getter токена при создании клиента
+export function createApiClient(getToken) {
+  const client = axios.create({ ... })
+  client.interceptors.request.use(config => {
+    const token = getToken()
+    if (token) config.headers.Authorization = `Bearer ${token}`
+    return config
+  })
+  return client
+}
+```
+
+---
+
+### R-07: Обработка ошибок при ленивой загрузке
+
+Показывать inline-ошибку в `SectionItem` / `SubsectionItem` с кнопкой «Повторить» при падении lazy-load.
+
+---
+
+### R-08: Мемоизировать `viewPlugins`
+
+```js
+const viewPlugins = useMemo(() => [
+  headingsPlugin(),
+  codeBlockPlugin({ codeBlockEditorDescriptors: [mermaidDescriptor] }),
+  ...
+], [])
+```
+
+---
+
+## 9.3 Низкий приоритет
+
+### R-09: Типизация TypeScript
+
+Ввести TypeScript для типизации сущностей (`Section`, `Page`, `User`) — исключит ошибки обращения к несуществующим полям при росте кодовой базы.
+
+### R-10: Виртуализация дерева навигации
+
+При >100 элементах использовать `react-window` для виртуализации `Sidebar`.
+
+### R-11: Персистентные slug в БД
+
+Хранить `slug` как отдельный атрибут. При переименовании `title` slug не меняется — старые ссылки не ломаются.
+
+---
+
+## 9.4 Сводная таблица
+
+| ID | Приоритет | Принцип SOLID | Описание |
+|----|-----------|---------------|----------|
+| R-01 | Высокий | S | Разбить `MainLayout` на хуки |
+| R-02 | Высокий | S | Разбить `Sidebar` на компоненты |
+| R-03 | Высокий | S | Разбить `PageView` на компоненты |
+| R-04 | Высокий | S, O | Вынести алгоритм поиска |
+| R-05 | Средний | L, D | Убрать прямую связь `pagesStore → sectionsStore` |
+| R-06 | Средний | D | Инверсия зависимости в `api.js` |
+| R-07 | Средний | — | Обработка ошибок lazy-load |
+| R-08 | Средний | — | Мемоизировать `viewPlugins` |
+| R-09 | Низкий | — | Типизация TypeScript |
+| R-10 | Низкий | — | Виртуализация дерева навигации |
+| R-11 | Низкий | — | Персистентные slug в БД |
+</script>
+
+<!-- ═══ Scripts ════════════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+<script>
+  // ── Configure marked ────────────────────────────────────────────
+  marked.setOptions({ breaks: true, gfm: true });
+
+  // ── Render markdown sections ─────────────────────────────────────
+  const map = {
+    'doc-01': 'md-01', 'doc-02': 'md-02', 'doc-03': 'md-03',
+    'doc-04': 'md-04', 'doc-05': 'md-05', 'doc-06': 'md-06',
+    'doc-07': 'md-07', 'doc-08': 'md-08', 'doc-09': 'md-09',
+  };
+
+  Object.entries(map).forEach(([docId, mdId]) => {
+    const src = document.getElementById(mdId);
+    const dst = document.getElementById(docId);
+    if (src && dst) dst.innerHTML = marked.parse(src.textContent);
+  });
+
+  // ── Active nav on scroll ─────────────────────────────────────────
+  const navItems = document.querySelectorAll('.nav-item[data-doc]');
+  const sections = ['doc-index', 'doc-01', 'doc-02', 'doc-03', 'doc-04',
+                    'doc-05', 'doc-06', 'doc-07', 'doc-08', 'doc-09'];
+
+  const titles = {
+    'doc-index': 'Обзор',
+    'doc-01':    'Обзор проекта',
+    'doc-02':    'Доменная модель',
+    'doc-03':    'Архитектура',
+    'doc-04':    'Компоненты',
+    'doc-05':    'Управление состоянием',
+    'doc-06':    'Сервисный слой',
+    'doc-07':    'Потоки данных',
+    'doc-08':    'Анализ SOLID',
+    'doc-09':    'Рекомендации',
+  };
+
+  const docKeys = {
+    'index': 'doc-index',
+    '01': 'doc-01', '02': 'doc-02', '03': 'doc-03',
+    '04': 'doc-04', '05': 'doc-05', '06': 'doc-06',
+    '07': 'doc-07', '08': 'doc-08', '09': 'doc-09',
+  };
+
+  function setActive(sectionId) {
+    navItems.forEach(item => {
+      const key = docKeys[item.dataset.doc];
+      item.classList.toggle('active', key === sectionId);
+    });
+    const titleEl = document.getElementById('topbarTitle');
+    if (titleEl) titleEl.textContent = titles[sectionId] || '';
+  }
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) setActive(entry.target.id);
+    });
+  }, { rootMargin: '-20% 0px -60% 0px', threshold: 0 });
+
+  sections.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) observer.observe(el);
+  });
+
+  // ── Smooth scroll on nav click ────────────────────────────────────
+  navItems.forEach(item => {
+    item.addEventListener('click', e => {
+      e.preventDefault();
+      const key = docKeys[item.dataset.doc];
+      const target = document.getElementById(key);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
+
+</body>
+</html>

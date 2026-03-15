@@ -180,6 +180,7 @@ const viewPlugins = [
 const PageView = observer(() => {
   const { cookbookStore, authStore } = useStores()
   const editorRef = useRef(null)
+  const viewContainerRef = useRef(null)
   const [isEditMode, setIsEditMode] = useState(false)
   const [originalContent, setOriginalContent] = useState('')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -196,6 +197,50 @@ const PageView = observer(() => {
       setIsEditingTitle(false)
     }
   }, [page?.id])
+
+  useEffect(() => {
+    if (isEditMode || !page?.content) return
+
+    const container = viewContainerRef.current
+    if (!container) return
+
+    const applyHeadingIds = () => {
+      const headings = container.querySelectorAll('h1, h2, h3, h4, h5, h6')
+      headings.forEach((heading) => {
+        const id = heading.textContent
+          .toLowerCase()
+          .trim()
+          .replace(/[^\wа-яёА-ЯЁ\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+        heading.id = id
+      })
+    }
+
+    const observer = new MutationObserver(applyHeadingIds)
+    observer.observe(container, { childList: true, subtree: true })
+    applyHeadingIds()
+
+    const handleClick = (e) => {
+      const link = e.target.closest('a')
+      if (!link) return
+      const href = link.getAttribute('href')
+      if (href && href.startsWith('#')) {
+        e.preventDefault()
+        const target = document.getElementById(href.slice(1))
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth' })
+        }
+      }
+    }
+
+    container.addEventListener('click', handleClick)
+
+    return () => {
+      observer.disconnect()
+      container.removeEventListener('click', handleClick)
+    }
+  }, [page?.id, isEditMode])
 
   useEffect(() => {
     setIsEditMode(false)
@@ -386,6 +431,7 @@ const PageView = observer(() => {
           </Box>
         ) : (
           <Box
+            ref={viewContainerRef}
             sx={{
               minWidth: 0,
               overflowWrap: 'break-word',
